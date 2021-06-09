@@ -6,7 +6,7 @@ import simpy
 
 
 
-def car(env,id ,  driver):
+def car(env, id , driver):
     request = driver.request()
     yield request
     print('Start parking at %d ' % env.now + str(id))
@@ -17,8 +17,6 @@ def car(env,id ,  driver):
     yield env.timeout(trip_duration)
     yield env.timeout(1)
     driver.release(request)
-
-
 
 if __name__ == '__main__':
     env = simpy.Environment()
