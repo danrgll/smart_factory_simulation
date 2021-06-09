@@ -26,6 +26,8 @@ if __name__ == '__main__':
     env.process(car(env, 1, driver))
     env.process(car(env, 2, driver))
     env.process(car(env, 3, driver))
+    env.process(car(env, 4, driver))
+
 
 
     env.run(until=15)
