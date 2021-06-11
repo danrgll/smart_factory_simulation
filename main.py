@@ -10,10 +10,10 @@ RING_STATION_CAPACITY = 2        # number of ring station
 STORAGE_CAPACITY = 1             # number of storage
 DELIVERY_CAPACITY = 1            # number of delivery station
 REPAIRMAN_CAPACITY = 1           # number of repairman
-PT_MEAN = 10                    # average processing time
-PT_SIGMA = 2                    # sigma of processing time
-MTTF = 300                      # mean time to failure
-BREAK_MEAN = 1 / MTTF           # parameter for expovariate distribution
+PT_MEAN = 10                     # average processing time
+PT_SIGMA = 2                     # sigma of processing time
+MTTF = 300                       # mean time to failure
+BREAK_MEAN = 1 / MTTF            # parameter for expovariate distribution
 
 
 class Factory:
