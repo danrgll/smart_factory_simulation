@@ -137,7 +137,7 @@ class Factory:
 
     def start_simulation(self):
         print("start_simluation")
-        self.env.run()
+        self.env.run(until=100)
         print("sim started")
 
 
