@@ -1,8 +1,6 @@
 import random
-import simpy
 from itertools import count
 import simpy
-from simpy.events import AllOf, AnyOf
 
 
 class Event(object):
@@ -17,32 +15,16 @@ class Event(object):
 
 
 class Process(object):
-    def __init__(self, env, pt_mean, pt_sigma, pid, ptype,  inputs=None, outputs=None, resources=None):
+    def __init__(self, env, pt_mean, pt_sigma, pid, ptype):
         self.env = env
         self.pt_mean = pt_mean
         self.pt_sigma = pt_sigma
         self.process_id = pid
         self.process_type = ptype
-        self.inputs = inputs
-        if inputs is None:
-            self.inputs = list()
-        self.outputs = outputs
-        if outputs is None:
-            self.outputs = list()
-        self.resources = resources
-        if resources is None:
-            self.resources = list()
-        self.proc = self.env.process(self.running())
 
     def processing_time(self):
         """Returns actual processing time."""
         return max(0, random.normalvariate(self.pt_mean, self.pt_sigma))
-
-    def running(self):
-        yield AllOf(self.env, [x.event for x in self.inputs])
-        yield self.env.timeout(self.processing_time())
-        for o in self.outputs:
-            o.trigger(value=self.process_id)
 
 
 class Machine(object):
@@ -50,7 +32,7 @@ class Machine(object):
                  mean_time_to_failure: float, man_proc: dict):
         self.env = env
         self.machine_id = machine_id
-        self.current_process = None
+        self.current_process = Process(self.env, 1, 0.1, 1, None)  # init process
         self.input = False
         self.broken = False
         self.mean_time_to_failure = mean_time_to_failure
@@ -62,7 +44,7 @@ class Machine(object):
             "break": env.event(),  # machine breaks
             "process_completed": env.event(),  # machine completed the process
         }
-        self.process = env.process(self.working())
+        self.process = env.process(self.working(self.current_process))
         self.env.process(self.break_machine())
         self.env.process(self.monitor(self.machine_id))
 
@@ -74,7 +56,7 @@ class Machine(object):
         """Return time until next failure for a machine."""
         return random.expovariate(1 / self.mean_time_to_failure)
 
-    def working(self, process):
+    def working(self, process: Process):
         """Processes pending processes
 
         While finish a process, the machine may break several times.
@@ -85,21 +67,18 @@ class Machine(object):
         # ToDo: Gedanken über Events machen/Running funktion sinnvoll?
         # ToDo: Weil wir nicht interrupted vermutlich
 
-        #self.current_process = process
-        #if self.current_process.process_type is not self.current_proc_type:
+        # self.current_process = process
+        # if self.current_process.process_type is not self.current_proc_type:
         #    self.env.timeout(self.time_to_change_proc_type)
         try:
-            #test
-            proc = self.env.process(self.current_process.running())
-            yield proc
-            #test ende
+            yield self.env.timeout(process.processing_time())
             self.events["process_completed"].succeed()
             self.events["process_completed"] = self.env.event()
         except simpy.Interrupt:
             self.broken = True
-            print("machine breaks @t=%i" % self.env.now)
+            print(f"machine {self.machine_id} breaks @t={self.env.now}")
             yield self.env.timeout(self.repair_time)
-            print("machine running @t=%i" % self.env.now)
+            print(f"machine {self.machine_id} running @t={self.env.now}")
             self.broken = False
 
     def break_machine(self):
@@ -111,9 +90,9 @@ class Machine(object):
                     self.process.interrupt()
                 except RuntimeError:
                     self.broken = True
-                    print("machine breaks @t=%i" % self.env.now)
+                    print(f"machine {self.machine_id} breaks @t={self.env.now}")
                     yield self.env.timeout(self.repair_time)
-                    print("machine running @t=%i" % self.env.now)
+                    print(f"machine {self.machine_id} breaks @t={self.env.now}")
                     self.broken = False
 
     def monitor(self, machine_id):
@@ -125,10 +104,11 @@ class Machine(object):
 
 
 class MachineResource:
-    def __init__(self, env: simpy.Environment, machines: list, capacity: int):
+    def __init__(self, env: simpy.Environment, machines: list, capacity: int, machine_type: str):
         self.env = env
         self.machines = machines
         self.resource = simpy.Resource(self.env, capacity)
+        self.machine_type = machine_type
         print("init MachineResource")
 
     def request_release_resource(self, process):
@@ -143,7 +123,7 @@ class MachineResource:
         self.resource.release(request)
         self.print_stats(self.resource)
 
-    def print_stats(self,res):
-        print(f'{res.count} of {res.capacity} slots are allocated.')
-        #print(f'  Users: {res.users}')
-        #print(f'  Queued events: {res.queue}')
+    def print_stats(self, res):
+        print(f'{res.count} of {res.capacity} slots are allocated at {self.machine_type}.')
+        # print(f'  Users: {res.users}')
+        # print(f'  Queued events: {res.queue}')
