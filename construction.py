@@ -28,6 +28,7 @@ class Process(object):
 
 
 class Machine(object):
+    """Machines that process something"""
     def __init__(self, env: simpy.Environment, machine_id, repair_time: float, time_to_change_proc_type,
                  mean_time_to_failure: float, man_proc: dict):
         self.env = env
@@ -41,8 +42,8 @@ class Machine(object):
         self.current_proc_type = None
         self.time_to_change_proc_type = time_to_change_proc_type
         self.events = {
-            "break": env.event(),  # machine breaks
-            "process_completed": env.event(),  # machine completed the process
+            "break": Event(self.env),  # machine breaks
+            "process_completed": Event(self.env),  # machine completed the process
         }
         self.process = env.process(self.working(self.current_process))
         self.env.process(self.break_machine())
@@ -50,11 +51,13 @@ class Machine(object):
 
     def current_manufacturing_process_type(self, proc: Process):
         self.current_proc_type = proc.process_type
-        self.env.timeout(3)  # time to change machine config to process new process type
+        yield self.env.timeout(3)  # time to change machine config to process new process type
 
     def time_to_failure(self):
         """Return time until next failure for a machine."""
-        return random.expovariate(1 / self.mean_time_to_failure)
+        fail_at = random.expovariate(self.mean_time_to_failure)
+        print(f"machine {self.machine_id} will fail at {fail_at}")
+        return fail_at
 
     def working(self, process: Process):
         """Processes pending processes
@@ -72,13 +75,12 @@ class Machine(object):
         #    self.env.timeout(self.time_to_change_proc_type)
         try:
             yield self.env.timeout(process.processing_time())
-            self.events["process_completed"].succeed()
-            self.events["process_completed"] = self.env.event()
+            self.events["process_completed"].trigger()
         except simpy.Interrupt:
             self.broken = True
             print(f"machine {self.machine_id} breaks @t={self.env.now}")
             yield self.env.timeout(self.repair_time)
-            print(f"machine {self.machine_id} running @t={self.env.now}")
+            print(f"machine {self.machine_id} ready again @t={self.env.now}")
             self.broken = False
 
     def break_machine(self):
@@ -89,21 +91,23 @@ class Machine(object):
                 try:
                     self.process.interrupt()
                 except RuntimeError:
+                    print(f"RunTimeError")
                     self.broken = True
                     print(f"machine {self.machine_id} breaks @t={self.env.now}")
                     yield self.env.timeout(self.repair_time)
-                    print(f"machine {self.machine_id} breaks @t={self.env.now}")
+                    print(f"machine {self.machine_id} running @t={self.env.now}")
                     self.broken = False
 
     def monitor(self, machine_id):
-        """Monitor the production of parts."""
+        """Monitor processes."""
         print("start monitor")
         for process in count():
-            yield self.events["process_completed"]
+            yield self.events["process_completed"].event
             print(f"machine {machine_id} completed process {process} @t={self.env.now}")
 
 
 class MachineResource:
+    """manages a amount of produced machines as a resource"""
     def __init__(self, env: simpy.Environment, machines: list, capacity: int, machine_type: str):
         self.env = env
         self.machines = machines
