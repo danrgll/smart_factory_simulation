@@ -45,6 +45,7 @@ class Machine(object):
             "break": Event(self.env),  # machine breaks
             "process_completed": Event(self.env),  # machine completed the process
         }
+        self.data = []  # monitor processes
         self.process = env.process(self.working(self.current_process))
         self.env.process(self.break_machine())
         self.env.process(self.monitor(self.machine_id))
@@ -70,7 +71,7 @@ class Machine(object):
         # ToDo: Gedanken über Events machen/Running funktion sinnvoll?
         # ToDo: Weil wir nicht interrupted vermutlich
 
-        # self.current_process = process
+        self.current_process = process
         # if self.current_process.process_type is not self.current_proc_type:
         #    self.env.timeout(self.time_to_change_proc_type)
         try:
@@ -103,6 +104,13 @@ class Machine(object):
         print("start monitor")
         for process in count():
             yield self.events["process_completed"].event
+            item = (
+                machine_id,
+                process,
+                self.env.now,
+                self.current_process.process_id
+            )
+            self.data.append(item)
             print(f"machine {machine_id} completed process {process} @t={self.env.now}")
 
 

@@ -1,4 +1,5 @@
 import construction
+import monitor
 import simpy
 
 
@@ -8,6 +9,7 @@ class Factory:
         self.env = simpy.Environment()
         self.mover = simpy.Resource(self.env, capacity=3)
         self.base_station = simpy.Resource(self.env, capacity=3)
+        self.base_station_monitor = monitor.Monitor(self.env, self.base_station, "pre")
         self.storage = simpy.Container(self.env, capacity=24)
         self.destination_station = simpy.Resource(self.env, capacity=1)
         self.ring1 = construction.Machine(self.env, 1, 20.0, 30, 1/50, {})
@@ -24,7 +26,9 @@ class Factory:
     def start_simulation(self):
         print("start_simluation")
         self.env.run(until=1000)
-        print("sim started")
+        print("sim ended")
+        print(self.base_station_monitor.data)
+        self.base_station_monitor.log_book("monitor_base_station.txt")
 
     def process_id_generator(self):
         i = 0
