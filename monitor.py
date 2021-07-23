@@ -2,7 +2,7 @@ import simpy
 from functools import wraps
 
 
-class Monitor:
+class MonitorResource:
     """monitor simpy resources"""
     def __init__(self, env: simpy.Environment, resource, call, ):
         self.env = env
@@ -12,7 +12,6 @@ class Monitor:
             self.patch_resource(self.resource, pre=self.monitor_resource)
         if call == "post":
             self.patch_resource(self.resource, post=self.monitor_resource)
-
 
     def patch_resource(self, resource, pre=None, post=None):
         def get_wrapper(func):
@@ -31,6 +30,7 @@ class Monitor:
                 setattr(resource, name, get_wrapper(getattr(resource, name)))
 
     def monitor_resource(self, resource: simpy.Resource):
+        """ create item with desired information and transfer it to self.data"""
         item = (
             self.env.now,  # simulation_time
             resource.count,  # number of users
@@ -40,6 +40,7 @@ class Monitor:
         self.data.append(item)
 
     def log_book(self, file: str):
+        """write data from self.data readable into file"""
         log_data = self.data
         log_data.reverse()
         with open(file, "w") as fobj:
@@ -52,9 +53,17 @@ class Monitor:
                     break
 
 
+class MonitorProduct:
+    def __init__(self):
+        self.data = []
 
-
-
-
-
-
+    def log_book(self, file: str):
+        log_data = self.data
+        log_data.reverse()
+        with open(file, "w") as fobj:
+            while True:
+                try:
+                    item = log_data.pop()
+                    fobj.write(item + "\n")
+                except IndexError:
+                    break

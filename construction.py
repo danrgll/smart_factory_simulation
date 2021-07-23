@@ -9,9 +9,9 @@ class Event(object):
         self.event = simpy.Event(self.env)
 
     def trigger(self, value=None):
-        print("event #%s triggered @t=%f" % (value, self.env.now))
-        self.event.succeed(value=value)
-        self.event = simpy.Event(self.env)
+            print("event #%s triggered @t=%f" % (value, self.env.now))
+            self.event.succeed(value=value)
+            self.event = simpy.Event(self.env)
 
 
 class Process(object):
@@ -24,35 +24,55 @@ class Process(object):
 
     def processing_time(self):
         """Returns actual processing time."""
-        return max(0, random.normalvariate(self.pt_mean, self.pt_sigma))
+        return random.normalvariate(self.pt_mean, self.pt_sigma)
+
+
+class Resource(object):
+    def __init__(self, env: simpy.Environment, capacity: int):
+        self.env = env
+        self.resource = simpy.Resource(self.env, capacity)
+
+    def request_release(self, event: Event):
+        # ToDo: wo wird event getriggered?? in Klasse Proccesses als Output gute Möglichkeit
+        """request and hold resource. After event is triggered release resource"""
+        request = self.resource.request()
+        yield request
+        yield event.event  # wait until resource are no more needed
+        self.resource.release(request)
 
 
 class Machine(object):
     """Machines that process something"""
     def __init__(self, env: simpy.Environment, machine_id, repair_time: float, time_to_change_proc_type,
                  mean_time_to_failure: float, man_proc: dict):
+        # ToDo: man_proc noch nicht in Verwendung, proc_type noch nicht verwendet
         self.env = env
         self.machine_id = machine_id
-        self.current_process = Process(self.env, 1, 0.1, 1, None)  # init process
-        self.input = False
-        self.broken = False
+        self.current_process = None  # current / last process
+        self.input = False  # process input
+        self.broken = False  # machine status, broken or not
         self.mean_time_to_failure = mean_time_to_failure
         self.repair_time = repair_time
-        self.man_proc = man_proc  # Manufacturing processes
-        self.current_proc_type = None
+        self.man_proc = man_proc  # Manufacturing process types
+        self.current_proc_type = None  # current process type
         self.time_to_change_proc_type = time_to_change_proc_type
         self.events = {
+            "reactivate": Event(self.env),  # activate working
             "break": Event(self.env),  # machine breaks
             "process_completed": Event(self.env),  # machine completed the process
         }
         self.data = []  # monitor processes
-        self.process = env.process(self.working(self.current_process))
+        self.process = env.process(self.working())
         self.env.process(self.break_machine())
         self.env.process(self.monitor(self.machine_id))
 
-    def current_manufacturing_process_type(self, proc: Process):
-        self.current_proc_type = proc.process_type
-        yield self.env.timeout(3)  # time to change machine config to process new process type
+    def current_manufacturing_process(self, proc: Process):
+        """Pass the new process to the machine and change the process type if necessary"""
+        self.current_process = proc
+        if self.current_proc_type is not proc.process_type:
+            self.current_proc_type = proc.process_type
+            yield self.env.timeout(3)  # time to change machine config to process new process type
+        self.events["reactivate"].trigger()
 
     def time_to_failure(self):
         """Return time until next failure for a machine."""
@@ -60,44 +80,33 @@ class Machine(object):
         print(f"machine {self.machine_id} will fail at {fail_at}")
         return fail_at
 
-    def working(self, process: Process):
+    def working(self):
         """Processes pending processes
 
         While finish a process, the machine may break several times.
         """
         print("start working")
-        # ToDo: prozess klasse einbauen und type Wechsel berücksichtigen
+        while True:
         # ToDo: Überprüfen on nach interupt der Prozess trotzdem noch abgearbeitet wird
         # ToDo: Gedanken über Events machen/Running funktion sinnvoll?
         # ToDo: Weil wir nicht interrupted vermutlich
-
-        self.current_process = process
-        # if self.current_process.process_type is not self.current_proc_type:
-        #    self.env.timeout(self.time_to_change_proc_type)
-        try:
-            yield self.env.timeout(process.processing_time())
-            self.events["process_completed"].trigger()
-        except simpy.Interrupt:
-            self.broken = True
-            print(f"machine {self.machine_id} breaks @t={self.env.now}")
-            yield self.env.timeout(self.repair_time)
-            print(f"machine {self.machine_id} ready again @t={self.env.now}")
-            self.broken = False
+            try:
+                yield self.events["reactivate"].event
+                yield self.env.timeout(self.current_process.processing_time())
+                self.events["process_completed"].trigger()
+            except simpy.Interrupt:
+                self.broken = True
+                print(f"machine {self.machine_id} breaks @t={self.env.now}")
+                yield self.env.timeout(self.repair_time)
+                print(f"machine {self.machine_id} ready again @t={self.env.now}")
+                self.broken = False
 
     def break_machine(self):
         """Break the machine every now and then."""
         while True:
             yield self.env.timeout(self.time_to_failure())
             if not self.broken:
-                try:
-                    self.process.interrupt()
-                except RuntimeError:
-                    print(f"RunTimeError")
-                    self.broken = True
-                    print(f"machine {self.machine_id} breaks @t={self.env.now}")
-                    yield self.env.timeout(self.repair_time)
-                    print(f"machine {self.machine_id} running @t={self.env.now}")
-                    self.broken = False
+                self.process.interrupt()
 
     def monitor(self, machine_id):
         """Monitor processes."""
@@ -128,9 +137,11 @@ class MachineResource:
         yield request
         self.print_stats(self.resource)
         for machine in self.machines:
+            # ToDo: was ist wenn machine broken und somit weniger machinen zur Verfügung stehen. Lösung über Events oder
+            # ToDo: while True Schleife
             if machine.input is False and machine.broken is False:
                 machine.input = True
-                yield self.env.process(machine.working(process))
+                machine.current_manufacturing_process(process)  # übergebe process an maschine
                 break
         self.resource.release(request)
         self.print_stats(self.resource)
