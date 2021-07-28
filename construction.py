@@ -1,6 +1,6 @@
 import random
-from itertools import count
 import simpy
+from simpy import AllOf
 
 
 class Event(object):
@@ -8,19 +8,72 @@ class Event(object):
         self.env = env
         self.event = simpy.Event(self.env)
 
-    def trigger(self, value=None):
-            print("event #%s triggered @t=%f" % (value, self.env.now))
-            self.event.succeed(value=value)
+    def trigger(self, value=None, reuse=True):
+        """trigger self.event and if we want to use this event again create a new simpy.Event"""
+        print("event #%s triggered @t=%f" % (value, self.env.now))
+        self.event.succeed(value=value)
+        if reuse is True:
             self.event = simpy.Event(self.env)
 
 
 class Process(object):
-    def __init__(self, env, pt_mean, pt_sigma, pid, ptype):
+    # ToDo: schauen welche Events wir nochmal benötigen. Falls nicht reuse=False setzen
+    def __init__(self, env, pt_mean, pt_sigma, pid, ptype=None, process_machine_type=None, inputs=None, outputs=None, resources=None):
         self.env = env
         self.pt_mean = pt_mean
         self.pt_sigma = pt_sigma
         self.process_id = pid
         self.process_type = ptype
+        self.process_machine_type = process_machine_type
+        self.inputs = inputs
+        if inputs is None:
+            self.inputs = list()
+        self.outputs = outputs
+        if outputs is None:
+            self.outputs = list()
+        self.resources = resources
+        if resources is None:
+            self.resources = list()
+        self.get_events = list()  # Events that mark if the resources are accessible which are required for the process
+        self.release_events = list()
+        self.proc_event = Event(self.env)  # Event which mark if the Process are processed
+        self.process = self.env.process(self.check_input_events())
+
+    def check_input_events(self):
+        yield AllOf(self.env, [x.event for x in self.inputs])
+        self.get_resources()
+
+    def get_resources(self):
+        # ToDO: Problem bei Maschinen als Resource..andere parameter bei release_request Funktion
+        """calls for required resources"""
+        for resource in self.resources:
+            print(resource)
+            get_event = Event(self.env)
+            release_event = Event(self.env)
+            self.get_events.append(get_event)
+            if self.process_type == "machine":
+                self.env.process(resource.request_release(get_event, release_event, self.process_id, self.process_type,
+                                                          self.processing_time() ))
+            # ToDO: release Event einabuen noch gescheit, speichern in Liste von Nöten?
+            else:
+                self.env.process(resource.request_release(get_event, release_event))
+        print("test3")
+        self.process = self.env.process(self.running())
+
+    def running(self):
+        print("test4")
+        # ToDO: Problem verschiedene Prozesse Machine und keine Maschine unter einen Hut zubekommen
+        # wait until process got all resources which needed
+        yield AllOf(self.env, [x.event for x in self.get_events])
+        print("test5")
+        if self.process_type == "machine":
+            yield self.proc_event.event  # bis jetzt noch nicht genutzt
+        else:
+            yield self.env.timeout(self.processing_time())
+        for event in self.release_events:
+            event.trigger()
+        for o in self.outputs:
+            o.trigger(value=self.process_id)
 
     def processing_time(self):
         """Returns actual processing time."""
@@ -32,95 +85,16 @@ class Resource(object):
         self.env = env
         self.resource = simpy.Resource(self.env, capacity)
 
-    def request_release(self, event: Event):
+    def request_release(self, get_resource: Event, release_resource: Event):
         # ToDo: wo wird event getriggered?? in Klasse Proccesses als Output gute Möglichkeit
+        # ToDo: Halte Resource solange sie benötigt wird
         """request and hold resource. After event is triggered release resource"""
+        print("test6")
         request = self.resource.request()
         yield request
-        yield event.event  # wait until resource are no more needed
+        get_resource.trigger()  # event to signal that you get the resource
+        yield release_resource
         self.resource.release(request)
-
-
-class Machine(object):
-    """Machines that process something"""
-    def __init__(self, env: simpy.Environment, machine_id, repair_time: float, time_to_change_proc_type,
-                 mean_time_to_failure: float, man_proc: dict):
-        # ToDo: man_proc noch nicht in Verwendung, proc_type noch nicht verwendet
-        self.env = env
-        self.machine_id = machine_id
-        self.current_process = None  # current / last process
-        self.input = False  # process input
-        self.broken = False  # machine status, broken or not
-        self.mean_time_to_failure = mean_time_to_failure
-        self.repair_time = repair_time
-        self.man_proc = man_proc  # Manufacturing process types
-        self.current_proc_type = None  # current process type
-        self.time_to_change_proc_type = time_to_change_proc_type
-        self.events = {
-            "reactivate": Event(self.env),  # activate working
-            "break": Event(self.env),  # machine breaks
-            "process_completed": Event(self.env),  # machine completed the process
-        }
-        self.data = []  # monitor processes
-        self.process = env.process(self.working())
-        self.env.process(self.break_machine())
-        self.env.process(self.monitor(self.machine_id))
-
-    def current_manufacturing_process(self, proc: Process):
-        """Pass the new process to the machine and change the process type if necessary"""
-        self.current_process = proc
-        if self.current_proc_type is not proc.process_type:
-            self.current_proc_type = proc.process_type
-            yield self.env.timeout(3)  # time to change machine config to process new process type
-        self.events["reactivate"].trigger()
-
-    def time_to_failure(self):
-        """Return time until next failure for a machine."""
-        fail_at = random.expovariate(self.mean_time_to_failure)
-        print(f"machine {self.machine_id} will fail at {fail_at}")
-        return fail_at
-
-    def working(self):
-        """Processes pending processes
-
-        While finish a process, the machine may break several times.
-        """
-        print("start working")
-        while True:
-        # ToDo: Überprüfen on nach interupt der Prozess trotzdem noch abgearbeitet wird
-        # ToDo: Gedanken über Events machen/Running funktion sinnvoll?
-        # ToDo: Weil wir nicht interrupted vermutlich
-            try:
-                yield self.events["reactivate"].event
-                yield self.env.timeout(self.current_process.processing_time())
-                self.events["process_completed"].trigger()
-            except simpy.Interrupt:
-                self.broken = True
-                print(f"machine {self.machine_id} breaks @t={self.env.now}")
-                yield self.env.timeout(self.repair_time)
-                print(f"machine {self.machine_id} ready again @t={self.env.now}")
-                self.broken = False
-
-    def break_machine(self):
-        """Break the machine every now and then."""
-        while True:
-            yield self.env.timeout(self.time_to_failure())
-            if not self.broken:
-                self.process.interrupt()
-
-    def monitor(self, machine_id):
-        """Monitor processes."""
-        print("start monitor")
-        for process in count():
-            yield self.events["process_completed"].event
-            item = (
-                machine_id,
-                process,
-                self.env.now,
-                self.current_process.process_id
-            )
-            self.data.append(item)
-            print(f"machine {machine_id} completed process {process} @t={self.env.now}")
 
 
 class MachineResource:
@@ -132,7 +106,8 @@ class MachineResource:
         self.machine_type = machine_type
         print("init MachineResource")
 
-    def request_release_resource(self, process):
+    def request_release_resource(self, get_resource: Event, release_resource: Event, proc_event: Event,
+                                 proc_id, process_type, processing_time):
         request = self.resource.request()
         yield request
         self.print_stats(self.resource)
@@ -141,8 +116,10 @@ class MachineResource:
             # ToDo: while True Schleife
             if machine.input is False and machine.broken is False:
                 machine.input = True
-                machine.current_manufacturing_process(process)  # übergebe process an maschine
+                get_resource.trigger()
+                machine.current_manufacturing_process(proc_event, process_type, proc_id, processing_time)  # übergebe process an maschine
                 break
+        yield release_resource.event
         self.resource.release(request)
         self.print_stats(self.resource)
 
