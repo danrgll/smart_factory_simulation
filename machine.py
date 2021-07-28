@@ -1,7 +1,7 @@
 import random
 from itertools import count
 import simpy
-from construction import Event
+from base_elements import Event
 
 class Machine(object):
     # ToDO: Event einbauen aus Processklasse welches markiert ob der Prozess abggearbeiitet ist.
