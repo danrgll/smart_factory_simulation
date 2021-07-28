@@ -18,6 +18,8 @@ class Event(object):
 
 class Process(object):
     # ToDo: schauen welche Events wir nochmal benötigen. Falls nicht reuse=False setzen
+    # ToDO: Problem der prozesszeit wenn zwei Resourcen benötigt werden. Mover und dann Maschine. Prozesszeit komplett rausnehemen, sie macht einfach keinen Sinn
+    # ToDo: Prozesszeit von ganz anderen Dingen abhängig. MAschine muss selber wissen wie lange sie braucht. sowie der Mover auch.
     def __init__(self, env, pt_mean, pt_sigma, pid, ptype=None, process_machine_type=None, inputs=None, outputs=None, resources=None):
         self.env = env
         self.pt_mean = pt_mean
@@ -53,7 +55,7 @@ class Process(object):
             self.get_events.append(get_event)
             if self.process_type == "machine":
                 self.env.process(resource.request_release(get_event, release_event, self.process_id, self.process_type,
-                                                          self.processing_time() ))
+                                                          self.processing_time()))
             # ToDO: release Event einabuen noch gescheit, speichern in Liste von Nöten?
             else:
                 self.env.process(resource.request_release(get_event, release_event))
@@ -63,6 +65,7 @@ class Process(object):
     def running(self):
         print("test4")
         # ToDO: Problem verschiedene Prozesse Machine und keine Maschine unter einen Hut zubekommen
+        #ToDO: ProzessZeit rausnehmen. über event steuerung und Prozesszeit über die verwendete Resource steuern
         # wait until process got all resources which needed
         yield AllOf(self.env, [x.event for x in self.get_events])
         print("test5")

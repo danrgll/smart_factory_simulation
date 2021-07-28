@@ -62,6 +62,7 @@ class Machine(object):
                 yield self.events["reactivate"].event
                 yield self.env.timeout(self.processing_time)
                 self.events["process_completed"].trigger()
+                # ToDo release macvht hiwr kienen Sinn
                 self.release_resource.trigger()
             except simpy.Interrupt:
                 self.broken = True

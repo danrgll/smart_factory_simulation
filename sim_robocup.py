@@ -1,6 +1,7 @@
 import base_elements
 from base_elements import Event, Process, Resource
 import monitor
+from machine import Machine
 import simpy
 
 
@@ -13,10 +14,10 @@ class Factory:
         self.base_station_monitor = monitor.MonitorResource(self.env, self.base_station, "pre")
         self.storage = simpy.Container(self.env, capacity=24)
         self.destination_station = Resource(self.env, 1)
-        self.ring1 = base_elements.Machine(self.env, 1, 20.0, 30, 1 / 50, {})
-        self.ring2 = base_elements.Machine(self.env, 2, 20.0, 30, 1 / 50, {})
-        self.cap1 = base_elements.Machine(self.env, 3, 20.0, 30, 1 / 50, {})
-        self.cap2 = base_elements.Machine(self.env, 4, 20.0, 30, 1 / 50, {})
+        self.ring1 = Machine(self.env, 1, 20.0, 30, 1 / 50, {})
+        self.ring2 = Machine(self.env, 2, 20.0, 30, 1 / 50, {})
+        self.cap1 = Machine(self.env, 3, 20.0, 30, 1 / 50, {})
+        self.cap2 = Machine(self.env, 4, 20.0, 30, 1 / 50, {})
         self.ring_machine_resource = base_elements.MachineResource(self.env, [self.ring1, self.ring2], 2, "RingBase")
         self.cap_machine_resource = base_elements.MachineResource(self.env, [self.cap1, self.cap2], 2, "CapBase")
 
