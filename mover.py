@@ -21,10 +21,13 @@ class Mover(object):
         self.pick_up_location = pick_up_location
         self.time_to_pick_up_location = np.linalg.norm(self.location-pick_up_location)  # calculates Euclidean distance
         self.destination = destination
-        self.time_to_destination = np.linalg.norm(self.pick_up_location-self.destination) # calculates Euclidean distance
+        self.time_to_destination = np.linalg.norm(self.pick_up_location-self.destination)  # calculates Euclidean distance
 
     def work(self):
         while True:
             # wait for event that signal mover to work
             yield self.events["reactivate"]
+            yield self.env.timeout(self.time_to_pick_up_location)  # time to drive to pick up location
+            # ToDo: Event das den Austausch des Produktes irg wie markiert damit Resource losgelassen wird.
+            yield self.env.timeout(self.time_to_destination)  # time to drive to destination
 

@@ -24,7 +24,7 @@ class Machine(object):
         self.processing_time = None
         self.events = {
             "reactivate": Event(self.env),  # activate working
-            "break": Event(self.env),  # machine breaks
+            "repaired": Event(self.env),  # machine breaks
             "process_completed": Event(self.env),  # machine completed the process
         }
         self.proc_event = None
@@ -33,14 +33,24 @@ class Machine(object):
         self.env.process(self.break_machine())
         self.env.process(self.monitor(self.machine_id))
 
-    def current_manufacturing_process(self, proc_event, process_type, processing_time):
+    def current_manufacturing_process(self,proc_id, proc_event, process_type, processing_time):
         """Pass the new process to the machine and change the process type if necessary"""
+        self.input = True
+        self.current_process = proc_id  # hands over the id of the current process
         self.proc_event = proc_event
         self.processing_time = processing_time
+        yield self.env.timeout(1)
         if self.current_proc_type != process_type:
             self.current_proc_type = process_type
             yield self.env.timeout(3)  # time to change machine config to process new process type
+        self.env.process(self.finish())
         self.events["reactivate"].trigger()
+        while input is True:
+            if self.broken is True:
+                yield self.events["repaired"].event
+                self.env.timeout(3)
+                self.events["reactivate"].trigger()
+
 
     def time_to_failure(self):
         """Return time until next failure for a machine."""
@@ -50,7 +60,6 @@ class Machine(object):
 
     def working(self):
         """Processes pending processes
-
         While finish a process, the machine may break several times.
         """
         print("start working")
@@ -59,17 +68,28 @@ class Machine(object):
             # ToDo: Gedanken über Events machen/Running funktion sinnvoll?
             # ToDo: Weil wir nicht interrupted vermutlich
             try:
-                yield self.events["reactivate"].event
-                yield self.env.timeout(self.processing_time)
+                yield self.events["reactivate"].event  # triggered in current_manufacturing_process
+                print("activate machine")
+                yield self.env.timeout(self.processing_time) # ToDo: Prozess mit mehreren Resourcen. Processing Time falsch
+                # yield in process def running ToDo noch nicht Optimal. Wenn Process Mover und Machine
+                # ToDo: bekommen hat beginnt er einfach abzuarbeiten,proc_event kann so bleiben aber in Mover noch Event implementieren
                 self.events["process_completed"].trigger()
-                # ToDo release macvht hiwr kienen Sinn
-                self.release_resource.trigger()
             except simpy.Interrupt:
                 self.broken = True
                 print(f"machine {self.machine_id} breaks @t={self.env.now}")
                 yield self.env.timeout(self.repair_time)
                 print(f"machine {self.machine_id} ready again @t={self.env.now}")
+                self.events["repaired"].trigger()
                 self.broken = False
+
+    def finish(self):
+        yield self.events["process_completed"].event
+        print("Prozess beendet")
+        self.proc_event.trigger()
+        self.input = False
+
+
+
 
     def break_machine(self):
         """Break the machine every now and then."""

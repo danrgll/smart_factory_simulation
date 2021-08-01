@@ -54,16 +54,40 @@ class MonitorResource:
 
 
 class MonitorProduct:
-    def __init__(self):
+    def __init__(self, env: simpy.Environment, product_id, events: dict):
+        self.env = env
+        self.product_id = product_id
+        self.events = events
         self.data = []
+        self.env.process(self.monitor())
+
+    def monitor(self):
+        if "base_station" in self.events:
+            yield self.events["base_station"].event
+            self.data.append(self.env.now)
+        if "ring_station" in self.events:
+            yield self.events["ring_station"].event
+            self.data.append(self.env.now)
+        if "cap_station" in self.events:
+            yield self.events["cap_station"].event
+            self.data.append(self.env.now)
+        if "del_station" in self.events:
+            yield self.events["del_station"].event
+            self.data.append(self.env.now)
+        if "completed" in self.events:
+            yield self.events["completed"].event
+            self.data.append(self.env.now)
+        self.log_book("product" + str(self.product_id))
+
 
     def log_book(self, file: str):
         log_data = self.data
         log_data.reverse()
         with open(file, "w") as fobj:
+            fobj.write(f"Manufacturing log of product {str(self.product_id)}: \n")
             while True:
                 try:
                     item = log_data.pop()
-                    fobj.write(item + "\n")
+                    fobj.write(f"process step completed at time {item} \n")
                 except IndexError:
                     break

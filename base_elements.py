@@ -39,6 +39,7 @@ class Process(object):
         self.get_events = list()  # Events that mark if the resources are accessible which are required for the process
         self.release_events = list()
         self.proc_event = Event(self.env)  # Event which mark if the Process are processed
+        self.data = []
         self.process = self.env.process(self.check_input_events())
 
     def check_input_events(self):
@@ -53,11 +54,14 @@ class Process(object):
             get_event = Event(self.env)
             release_event = Event(self.env)
             self.get_events.append(get_event)
+            self.release_events.append(release_event)
             if self.process_type == "machine":
-                self.env.process(resource.request_release(get_event, release_event, self.process_id, self.process_type,
+                print("machine")
+                self.env.process(resource.request_release_resource(get_event, release_event, self.proc_event, self.process_id, self.process_type,
                                                           self.processing_time()))
             # ToDO: release Event einabuen noch gescheit, speichern in Liste von Nöten?
             else:
+                print("normal resource")
                 self.env.process(resource.request_release(get_event, release_event))
         print("test3")
         self.process = self.env.process(self.running())
@@ -70,7 +74,9 @@ class Process(object):
         yield AllOf(self.env, [x.event for x in self.get_events])
         print("test5")
         if self.process_type == "machine":
-            yield self.proc_event.event  # bis jetzt noch nicht genutzt
+            print("machine_start")
+            yield self.proc_event.event  # wait until machine processed the process
+            print("machine fertig")
         else:
             yield self.env.timeout(self.processing_time())
         for event in self.release_events:
@@ -96,7 +102,7 @@ class Resource(object):
         request = self.resource.request()
         yield request
         get_resource.trigger()  # event to signal that you get the resource
-        yield release_resource
+        yield release_resource.event
         self.resource.release(request)
 
 
@@ -117,11 +123,13 @@ class MachineResource:
         for machine in self.machines:
             # ToDo: was ist wenn machine broken und somit weniger machinen zur Verfügung stehen. Lösung über Events oder
             # ToDo: while True Schleife
-            if machine.input is False and machine.broken is False:
+            if machine.input is False:
                 machine.input = True
                 get_resource.trigger()
-                machine.current_manufacturing_process(proc_event, process_type, proc_id, processing_time)  # übergebe process an maschine
+                # ToDo: irg was stimmt hier nicht unterschiedliche anzahl von Prodkuten kommen am Ziel an?? Vielleicht Fehler ToDO oben drüber. Könnte sehr gut sein
+                self.env.process(machine.current_manufacturing_process(proc_id, proc_event, process_type, processing_time))  # übergebe process an maschine
                 break
+        self.print_stats(self.resource)
         yield release_resource.event
         self.resource.release(request)
         self.print_stats(self.resource)
