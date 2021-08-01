@@ -4,9 +4,9 @@ import simpy
 from base_elements import Event
 
 class Machine(object):
-    # ToDO: Event einbauen aus Processklasse welches markiert ob der Prozess abggearbeiitet ist.
     # ToDO: Processingtime auslagern, nicht von Prozess bestimmen lassen sondern vom Porzesstyp.
     #  Jede MAchine unterschiedlich vielleicht
+    # in eigene Datei verschwiende Config Speichern für Maschinen, welche Prozesse, wie lange brauchen
     """Machines that process something"""
     def __init__(self, env: simpy.Environment, machine_id, repair_time: float, time_to_change_proc_type,
                  mean_time_to_failure: float, man_proc: dict):
@@ -55,21 +55,15 @@ class Machine(object):
     def time_to_failure(self):
         """Return time until next failure for a machine."""
         fail_at = random.expovariate(self.mean_time_to_failure)
-        print(f"machine {self.machine_id} will fail at {fail_at}")
         return fail_at
 
     def working(self):
         """Processes pending processes
         While finish a process, the machine may break several times.
         """
-        print("start working")
         while True:
-            # ToDo: Überprüfen on nach interupt der Prozess trotzdem noch abgearbeitet wird
-            # ToDo: Gedanken über Events machen/Running funktion sinnvoll?
-            # ToDo: Weil wir nicht interrupted vermutlich
             try:
                 yield self.events["reactivate"].event  # triggered in current_manufacturing_process
-                print("activate machine")
                 yield self.env.timeout(self.processing_time) # ToDo: Prozess mit mehreren Resourcen. Processing Time falsch
                 # yield in process def running ToDo noch nicht Optimal. Wenn Process Mover und Machine
                 # ToDo: bekommen hat beginnt er einfach abzuarbeiten,proc_event kann so bleiben aber in Mover noch Event implementieren
@@ -79,28 +73,23 @@ class Machine(object):
                 print(f"machine {self.machine_id} breaks @t={self.env.now}")
                 yield self.env.timeout(self.repair_time)
                 print(f"machine {self.machine_id} ready again @t={self.env.now}")
-                self.events["repaired"].trigger()
                 self.broken = False
+                self.events["repaired"].trigger()
 
     def finish(self):
         yield self.events["process_completed"].event
-        print("Prozess beendet")
         self.proc_event.trigger()
         self.input = False
-
-
-
 
     def break_machine(self):
         """Break the machine every now and then."""
         while True:
             yield self.env.timeout(self.time_to_failure())
-            if not self.broken:
-                self.process.interrupt()
+            self.process.interrupt()
+            yield self.events["repaired"].event
 
     def monitor(self, machine_id):
         """Monitor processes."""
-        print("start monitor")
         for process in count():
             yield self.events["process_completed"].event
             item = (

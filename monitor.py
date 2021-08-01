@@ -79,7 +79,6 @@ class MonitorProduct:
             self.data.append(self.env.now)
         self.log_book("product" + str(self.product_id))
 
-
     def log_book(self, file: str):
         log_data = self.data
         log_data.reverse()
