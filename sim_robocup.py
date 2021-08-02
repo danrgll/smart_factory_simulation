@@ -3,6 +3,7 @@ from base_elements import Event, Process, Resource
 import monitor
 from machine import Machine
 import simpy
+import tester
 
 
 class Factory:
@@ -46,8 +47,28 @@ class Factory:
         print(self.cap1.data)
         print("cap2")
         print(self.cap2.data)
-
-
+        print("get resource machine in Prozess, starte Prozess um Maschinen Resource zu erhalten")
+        print(tester.d.__next__()-1)
+        print("anfrage an machine Resource, aber noch nicht erhalten")
+        print(tester.e.__next__() - 1)
+        print("machine Resource bekommen")
+        print(tester.a.__next__()-1)
+        print("machine zugewiesen bekommen")
+        print(tester.c.__next__()-1)
+        print("current process manu aufgerufen in machine")
+        print(tester.b.__next__()-1)
+        print("maschine fängt an den Prozess abzuarbeiten")
+        print(tester.i.__next__() - 1)
+        print("Überprüfe ob Maschine währenddessen kaputt geht")
+        print(tester.k.__next__())
+        print("maschine hat Prozess abgeschlossen")
+        print(tester.g.__next__() - 1)
+        print("maschine während laufendem Prozess kaputt gegangen")
+        print(tester.f.__next__() - 1)
+        print("maschine während laufendem Prozess kaputt gegangen aber noch vor Events")
+        print(tester.h.__next__() - 1)
+        print("resource maschine wird nach abschluss des prozesses wieder freigegeben")
+        print(tester.j.__next__() - 1)
     def process_id_generator(self):
         # ToDO vielleicht eher in Produkt Klasse machen und jedes Produkt verwaltet seine Prozesse nach einer ID
         i = 0

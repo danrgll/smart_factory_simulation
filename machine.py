@@ -1,4 +1,5 @@
 import random
+import tester
 from itertools import count
 import simpy
 from base_elements import Event
@@ -14,7 +15,8 @@ class Machine(object):
         self.env = env
         self.machine_id = machine_id
         self.input = False  # process input
-        self.current_process = None  #id from current process
+        self.active_process = False
+        self.current_process = None  # id from current process
         self.broken = False  # machine status, broken or not
         self.mean_time_to_failure = mean_time_to_failure
         self.repair_time = repair_time
@@ -25,7 +27,8 @@ class Machine(object):
         self.events = {
             "reactivate": Event(self.env),  # activate working
             "repaired": Event(self.env),  # machine breaks
-            "process_completed": Event(self.env),  # machine completed the process
+            "process_completed": Event(self.env),
+            "kick_process": Event(self.env)  # machine completed the process
         }
         self.proc_event = None
         self.data = []  # monitor processes
@@ -35,6 +38,8 @@ class Machine(object):
 
     def current_manufacturing_process(self,proc_id, proc_event, process_type, processing_time):
         """Pass the new process to the machine and change the process type if necessary"""
+        print("testmachine")
+        tester.b.__next__()
         self.input = True
         self.current_process = proc_id  # hands over the id of the current process
         self.proc_event = proc_event
@@ -45,11 +50,7 @@ class Machine(object):
             yield self.env.timeout(3)  # time to change machine config to process new process type
         self.env.process(self.finish())
         self.events["reactivate"].trigger()
-        while input is True:
-            if self.broken is True:
-                yield self.events["repaired"].event
-                self.env.timeout(3)
-                self.events["reactivate"].trigger()
+        self.env.process(self.restart_process())
 
 
     def time_to_failure(self):
@@ -64,22 +65,32 @@ class Machine(object):
         while True:
             try:
                 yield self.events["reactivate"].event  # triggered in current_manufacturing_process
+                tester.i.__next__()
                 yield self.env.timeout(self.processing_time) # ToDo: Prozess mit mehreren Resourcen. Processing Time falsch
                 # yield in process def running ToDo noch nicht Optimal. Wenn Process Mover und Machine
                 # ToDo: bekommen hat beginnt er einfach abzuarbeiten,proc_event kann so bleiben aber in Mover noch Event implementieren
                 self.events["process_completed"].trigger()
             except simpy.Interrupt:
                 self.broken = True
+                if self.input is True:
+                    pass
+                    # ToDo: drücke request einer Resource rein prio damit kein Process resource bekommt.
                 print(f"machine {self.machine_id} breaks @t={self.env.now}")
                 yield self.env.timeout(self.repair_time)
                 print(f"machine {self.machine_id} ready again @t={self.env.now}")
                 self.broken = False
-                self.events["repaired"].trigger()
+                if self.input is True:
+                    self.events["repaired"].trigger()
+
+    def restart_process(self):
+        yield self.events["repaired"].event
+        self.events["reactivate"].trigger()
 
     def finish(self):
         yield self.events["process_completed"].event
-        self.proc_event.trigger()
-        self.input = False
+        tester.g.__next__()
+        self.input = False  # signal machine is free
+        self.proc_event.trigger()  # resource is released again
 
     def break_machine(self):
         """Break the machine every now and then."""
@@ -90,13 +101,12 @@ class Machine(object):
 
     def monitor(self, machine_id):
         """Monitor processes."""
-        for process in count():
+        while True:
             yield self.events["process_completed"].event
             item = (
                 machine_id,
-                process,
                 self.env.now,
                 self.current_process
             )
             self.data.append(item)
-            print(f"machine {machine_id} completed process {process} @t={self.env.now}")
+            print(f"machine {machine_id} completed process @t={self.env.now}")

@@ -1,5 +1,6 @@
 import random
 import simpy
+import tester
 from simpy import AllOf
 
 
@@ -14,6 +15,7 @@ class Event(object):
         self.event.succeed(value=value)
         if reuse is True:
             self.event = simpy.Event(self.env)
+
 
 
 class Process(object):
@@ -53,6 +55,7 @@ class Process(object):
             self.get_events.append(get_event)
             self.release_events.append(release_event)
             if self.process_type == "machine":
+                tester.d.__next__()
                 self.env.process(resource.request_release_resource(get_event, release_event, self.proc_event, self.process_id, self.process_type,
                                                           self.processing_time()))
             # ToDO: release Event einabuen noch gescheit, speichern in Liste von Nöten?
@@ -105,17 +108,23 @@ class MachineResource:
     def request_release_resource(self, get_resource: Event, release_resource: Event, proc_event: Event,
                                  proc_id, process_type, processing_time):
         request = self.resource.request()
+        tester.e.__next__()
         yield request
+
+        print("getResource")
+        tester.a.__next__()
         self.print_stats(self.resource)
         for machine in self.machines:
             # ToDO: Maschine kein Input und geht kaputt. Sollte keine weiteren Prozesse erhalten in der Zeit. Übergebe resource und belege diese solange. Prio Resource? Lösung weil
             # Ohne das Problem, dass es sich womöglich anstellt..aber muss mir P<rio dafür nochmal genau anschauen ob es das Probklem lösen könnte
             if machine.input is False:
+                tester.c.__next__()
                 machine.input = True
                 get_resource.trigger()
                 self.env.process(machine.current_manufacturing_process(proc_id, proc_event, process_type, processing_time))  # übergebe process an maschine
                 break
         yield release_resource.event
+        tester.j.__next__()
         self.resource.release(request)
         self.print_stats(self.resource)
 
@@ -123,3 +132,4 @@ class MachineResource:
         print(f'{res.count} of {res.capacity} slots are allocated at {self.machine_type}.')
         # print(f'  Users: {res.users}')
         # print(f'  Queued events: {res.queue}')
+
