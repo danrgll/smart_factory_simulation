@@ -17,7 +17,7 @@ class Machine(object):
         self.machine_id = machine_id
         self.machine_type = machine_type
         self.coordinates = location
-        self.ready = False  # process input
+        self.ready = True  # process input
         self.active_process = False
         self.current_process = None  # id from current process
         self.broken = False  # machine status, broken or not
@@ -33,23 +33,22 @@ class Machine(object):
             "process_completed": Event(self.env),
             "kick_process": Event(self.env)  # machine completed the process
         }
-        self.proc_event = None
         self.data = []  # monitor processes
         self.process = env.process(self.working())
         self.env.process(self.break_machine())
         self.env.process(self.monitor(self.machine_id))
 
-    def input(self, proc_id, proc_event, release_resource_event, product: Product):
+    def input(self, proc_id, release_resource_event, product: Product):
         """Pass the new process to the machine and change the process type if necessary"""
         print("testmachine")
         tester.b.__next__()
-        self.ready = True
-        self.proc_event = proc_event
+        self.ready = False
         self.current_process = proc_id  # hands over the id of the current process
         if self.current_proc_type != product.properties[self.machine_type]:
             self.current_proc_type = product.properties[self.machine_type]
             yield self.env.timeout(self.time_to_change_proc_type)  # time to change machine config to process new process type
-        self.env.process(self.finish())
+        self.env.process(self.finish(release_resource_event))
+        # ToDO: yield product kommt an abwarten bis dahin
         self.events["reactivate"].trigger()
         self.env.process(self.restart_process())
 
@@ -90,11 +89,11 @@ class Machine(object):
         self.env.timeout(2)
         self.events["reactivate"].trigger()
 
-    def finish(self):
+    def finish(self,release_resource_event):
         yield self.events["process_completed"].event
         tester.g.__next__()
-        self.ready = False  # signal machine is free
-        self.proc_event.trigger()  # resource is released again
+        self.ready = True  # signal machine is free
+        release_resource_event.trigger()
 
     def break_machine(self):
         """Break the machine every now and then."""

@@ -13,10 +13,10 @@ class Factory:
     def __init__(self):
         # initialize resources
         self.env = simpy.Environment()
-        self.mover = Resource(self.env, 3)
-        self.base_station = Resource(self.env, 3)
+        self.base_station = Resource(self.env,(2, 2), 3, 3)
         self.storage = simpy.Container(self.env, capacity=24)
-        self.destination_station = Resource(self.env, 1)
+        self.destination_station = Resource(self.env, (4, 4), 1, 3)
+        # initialize mover
         # initialize machines
         self.ring1 = Machine(self.env, 1,"ring", (0, 0), 10.0, 5, 1 / 80, settings.PROC_TIME_RING)
         self.ring2 = Machine(self.env, 2,"ring", (5, 5), 10.0, 5, 1 / 80, settings.PROC_TIME_RING)
@@ -27,7 +27,6 @@ class Factory:
         self.cap_machine_resource = base_elements.MachineResource(self.env, [self.cap1, self.cap2], 2, "CapBase")
         # monitor resources
         self.base_station_monitor = monitor.MonitorResource(self.env, self.base_station.resource, "pre")
-        self.mover_monitor = monitor.MonitorResource(self.env, self.mover.resource, "pre")
         self.destination_monitor = monitor.MonitorResource(self.env, self.destination_station.resource, "pre")
         # prozess id generator
         self.proc_id_gen = self.process_id_generator()
@@ -36,10 +35,8 @@ class Factory:
         """starts simulation"""
         self.env.run(until=200)
         print(self.base_station_monitor.data)
-        print(self.mover_monitor.data)
         print(self.destination_monitor.data)
         self.base_station_monitor.log_book("monitor_base_station.txt")
-        self.mover_monitor.log_book("monitor_mover.txt")
         self.destination_monitor.log_book("monitor_destination.txt")
         print("monitor ring 1")
         print(self.ring1.data)
