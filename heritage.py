@@ -55,8 +55,8 @@ class MachineResource:
         yield request
         self.print_stats(self.resource)
         for machine in self.list_of_machines:
-            if machine.input is False and machine.broken is False:
-                machine.input = True
+            if machine.ready is False and machine.broken is False:
+                machine.ready = True
                 yield self.env.process(machine.working())
                 break
         self.resource.release(request)

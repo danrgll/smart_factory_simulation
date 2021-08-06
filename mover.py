@@ -17,7 +17,7 @@ class Mover(object):
         }
         self.env.process(self.work())
 
-    def transport_information(self, product_id, pick_up_location: np.array, destination: np.array):
+    def transport_information(self, product, pick_up_location: np.array, destination: np.array):
         self.pick_up_location = pick_up_location
         self.time_to_pick_up_location = np.linalg.norm(self.location-pick_up_location)  # calculates Euclidean distance
         self.destination = destination
@@ -30,4 +30,5 @@ class Mover(object):
             yield self.env.timeout(self.time_to_pick_up_location)  # time to drive to pick up location
             # ToDo: Event das den Austausch des Produktes irg wie markiert damit Resource losgelassen wird.
             yield self.env.timeout(self.time_to_destination)  # time to drive to destination
+            yield
 

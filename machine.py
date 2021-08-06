@@ -3,24 +3,27 @@ import tester
 from itertools import count
 import simpy
 from base_elements import Event
+from product import Product
 
 class Machine(object):
     # ToDO: Processingtime auslagern, nicht von Prozess bestimmen lassen sondern vom Porzesstyp.
     #  Jede MAchine unterschiedlich vielleicht
     # in eigene Datei verschwiende Config Speichern für Maschinen, welche Prozesse, wie lange brauchen
     """Machines that process something"""
-    def __init__(self, env: simpy.Environment, machine_id, repair_time: float, time_to_change_proc_type,
-                 mean_time_to_failure: float, man_proc: dict):
+    def __init__(self, env: simpy.Environment, machine_id, machine_type, location, repair_time: float, time_to_change_proc_type: float,
+                 mean_time_to_failure: float, man_proc_time: list):
         # ToDo: man_proc noch nicht in Verwendung, proc_type noch nicht verwendet
         self.env = env
         self.machine_id = machine_id
-        self.input = False  # process input
+        self.machine_type = machine_type
+        self.coordinates = location
+        self.ready = False  # process input
         self.active_process = False
         self.current_process = None  # id from current process
         self.broken = False  # machine status, broken or not
         self.mean_time_to_failure = mean_time_to_failure
         self.repair_time = repair_time
-        self.man_proc = man_proc  # Manufacturing process types
+        self.man_proc_time = man_proc_time  # Manufacturing process types time
         self.current_proc_type = None  # current process type
         self.time_to_change_proc_type = time_to_change_proc_type
         self.processing_time = None
@@ -36,18 +39,16 @@ class Machine(object):
         self.env.process(self.break_machine())
         self.env.process(self.monitor(self.machine_id))
 
-    def current_manufacturing_process(self,proc_id, proc_event, process_type, processing_time):
+    def input(self, proc_id, proc_event, release_resource_event, product: Product):
         """Pass the new process to the machine and change the process type if necessary"""
         print("testmachine")
         tester.b.__next__()
-        self.input = True
-        self.current_process = proc_id  # hands over the id of the current process
+        self.ready = True
         self.proc_event = proc_event
-        self.processing_time = processing_time
-        yield self.env.timeout(1)
-        if self.current_proc_type != process_type:
-            self.current_proc_type = process_type
-            yield self.env.timeout(3)  # time to change machine config to process new process type
+        self.current_process = proc_id  # hands over the id of the current process
+        if self.current_proc_type != product.properties[self.machine_type]:
+            self.current_proc_type = product.properties[self.machine_type]
+            yield self.env.timeout(self.time_to_change_proc_type)  # time to change machine config to process new process type
         self.env.process(self.finish())
         self.events["reactivate"].trigger()
         self.env.process(self.restart_process())
@@ -72,24 +73,27 @@ class Machine(object):
                 self.events["process_completed"].trigger()
             except simpy.Interrupt:
                 self.broken = True
-                if self.input is True:
+                if self.ready is True:
                     pass
                     # ToDo: drücke request einer Resource rein prio damit kein Process resource bekommt.
                 print(f"machine {self.machine_id} breaks @t={self.env.now}")
                 yield self.env.timeout(self.repair_time)
                 print(f"machine {self.machine_id} ready again @t={self.env.now}")
                 self.broken = False
-                if self.input is True:
+                if self.ready is True:
                     self.events["repaired"].trigger()
 
     def restart_process(self):
+        #ToDO: überlegen ob hier durch aufrufe etwas blödes passieren kann. wird aufgerufen zum
+        # Beispiel nachdem es von einem Prozess zuvor losgetreten wurde. Muss auch zum Ende kommen
         yield self.events["repaired"].event
+        self.env.timeout(2)
         self.events["reactivate"].trigger()
 
     def finish(self):
         yield self.events["process_completed"].event
         tester.g.__next__()
-        self.input = False  # signal machine is free
+        self.ready = False  # signal machine is free
         self.proc_event.trigger()  # resource is released again
 
     def break_machine(self):
