@@ -1,4 +1,3 @@
-import random
 import simpy
 import tester
 from product import Product
@@ -16,7 +15,6 @@ class Event(object):
         self.event.succeed(value=value)
         if reuse is True:
             self.event = simpy.Event(self.env)
-
 
 
 class Process(object):
@@ -49,8 +47,9 @@ class Process(object):
     def get_resources(self):
         """calls for required resources"""
         # Lösung der Resourcen reihenfolge anfragen. So in liste geben wie man es auch gerne nutzen würde.
-        # sann jeweils event übergeben das erst getriggerd werden muss bevor eine weitere Resource angefragt wird.
-        start_next_proc_step = None
+        # ToDO: beobachten ob es zum Probelm wird das alle Resourcen gleichzeitig und nicht hintereinander angefragt werden.
+        start_next_proc_step = Event(self.env)
+        self.process_steps_events.append(start_next_proc_step)
         for resource in self.resources:
             get_event = Event(self.env)
             release_event = Event(self.env)
@@ -58,6 +57,7 @@ class Process(object):
             # ToDO: Problem beginnt direkt abzuarbeiten womöglich noch bevor er alle resourcen bekommt.
             tester.d.__next__()
             # resource machine
+            # ToDO: großes todo start_nex_proc über all einbauen.
             self.env.process(resource.request_release_resource(get_event, release_event, start_next_proc_step, self.process_id, self.product))
             start_next_proc_step = Event(self.env)
             self.process_steps_events.append(start_next_proc_step)
@@ -75,11 +75,11 @@ class Process(object):
 
 
 class Resource(object):
-    def __init__(self, env: simpy.Environment, location, capacity: int, processing_time):
+    def __init__(self, env: simpy.Environment, resource_type, location, capacity: int, processing_time):
         self.env = env
         self.location = location
         self.resource = simpy.Resource(self.env, capacity)
-        self.resource_type = "standard"
+        self.resource_type = resource_type
         self.processing_time = processing_time
 
     def request_release(self, get_resource: Event, release_resource: Event, start_next_proc_step: Event, proc_id, product: Product):
@@ -88,13 +88,14 @@ class Resource(object):
         """request and hold resource. After event is triggered release resource"""
         request = self.resource.request()
         yield request
+        product.stations_location[self.resource_type] = self.location
+        product.events[self.resource_type].trigger()
         get_resource.trigger() # event to signal that you get the resource
         # ToDo yield event was Prozess startet. gesteuert über Product.
+        yield start_next_proc_step.event
         yield self.env.timeout(self.processing_time)
         yield release_resource.event
         self.resource.release(request)
-
-
 
 
 class MachineResource:
@@ -127,7 +128,7 @@ class MachineResource:
                     tester.c.__next__()
                     machine.ready = True
                     get_resource.trigger()  # auslagern in Maschine
-                    self.env.process(machine.input(proc_id, release_resource, product))  # übergebe process an maschine
+                    self.env.process(machine.input(proc_id, release_resource, start_next_proc_step, product))  # übergebe process an maschine
                     get_machine = True
                     break
         yield release_resource.event

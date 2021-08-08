@@ -13,9 +13,9 @@ class Factory:
     def __init__(self):
         # initialize resources
         self.env = simpy.Environment()
-        self.base_station = Resource(self.env,(2, 2), 3, 3)
+        self.base_station = Resource(self.env,"base", (2, 2), 3, 3)
         self.storage = simpy.Container(self.env, capacity=24)
-        self.destination_station = Resource(self.env, (4, 4), 1, 3)
+        self.destination_station = Resource(self.env,"del", (4, 4), 1, 3)
         # initialize mover
         # initialize machines
         self.ring1 = Machine(self.env, 1,"ring", (0, 0), 10.0, 5, 1 / 80, settings.PROC_TIME_RING)
