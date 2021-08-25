@@ -2,6 +2,7 @@ import base_elements
 from base_elements import Event, Process, Resource
 import monitor
 from machine import Machine
+from mover import Mover
 import simpy
 import tester
 import settings
@@ -13,27 +14,34 @@ class Factory:
     def __init__(self):
         # initialize resources
         self.env = simpy.Environment()
-        self.base_station = Resource(self.env,"base", (2, 2), 3, 3)
+        self.base_station = Resource(self.env, "base", settings.base_location, 3, settings.PROC_TIME_BASE)
         self.storage = simpy.Container(self.env, capacity=24)
-        self.destination_station = Resource(self.env,"del", (4, 4), 1, 3)
+        self.destination_station = Resource(self.env,"del", settings.del_location, 1, (3,0.2))
         # initialize mover
+        self.mover1 = Mover(self.env, settings.mover1_location)
+        self.mover2 = Mover(self.env, settings.mover2_location)
+        self.mover3 = Mover(self.env, settings.mover3_location)
         # initialize machines
-        self.ring1 = Machine(self.env, 1,"ring", (0, 0), 10.0, 5, 1 / 80, settings.PROC_TIME_RING)
-        self.ring2 = Machine(self.env, 2,"ring", (5, 5), 10.0, 5, 1 / 80, settings.PROC_TIME_RING)
-        self.cap1 = Machine(self.env, 3, "cap", (10, 10), 10.0, 5, 1 / 80, settings.PROC_TIME_CAP)
-        self.cap2 = Machine(self.env, 4,"cap", (10, 5), 10.0, 5, 1 / 80, settings.PROC_TIME_CAP)
+        self.ring1 = Machine(self.env, 1,"ring", settings.ring_location1, 10.0, 5, settings.MEAN_TIME_TO_FAILURE, settings.PROC_TIME_RING)
+        self.ring2 = Machine(self.env, 2,"ring", settings.ring_location2, 10.0, 5, settings.MEAN_TIME_TO_FAILURE, settings.PROC_TIME_RING)
+        self.ring3 = Machine(self.env, 3, "ring", settings.ring_location2, 10.0, 5, settings.MEAN_TIME_TO_FAILURE, settings.PROC_TIME_RING)
+        self.cap1 = Machine(self.env, 4, "cap", settings.cap_location1, 10.0, 5, settings.MEAN_TIME_TO_FAILURE, settings.PROC_TIME_CAP)
+        self.cap2 = Machine(self.env, 5,"cap", settings.cap_location2, 10.0, 5, settings.MEAN_TIME_TO_FAILURE, settings.PROC_TIME_CAP)
+        self.cap3 = Machine(self.env, 6,"cap", settings.cap_location2, 10.0, 5, settings.MEAN_TIME_TO_FAILURE, settings.PROC_TIME_CAP)
         # group machines to resources
-        self.ring_machine_resource = base_elements.MachineResource(self.env, [self.ring1, self.ring2], 2, "RingBase")
-        self.cap_machine_resource = base_elements.MachineResource(self.env, [self.cap1, self.cap2], 2, "CapBase")
+        self.ring_machine_resource = base_elements.MachineResource(self.env, [self.ring1, self.ring2, self.ring3], 2, "RingBase")
+        self.cap_machine_resource = base_elements.MachineResource(self.env, [self.cap1, self.cap2, self.cap3], 2, "CapBase")
         # monitor resources
         self.base_station_monitor = monitor.MonitorResource(self.env, self.base_station.resource, "pre")
         self.destination_monitor = monitor.MonitorResource(self.env, self.destination_station.resource, "pre")
+        # group movers
+        self.mover_resource = base_elements.MoverResource(self.env, [self.mover1, self.mover2, self.mover3], 3)
         # prozess id generator
         self.proc_id_gen = self.process_id_generator()
 
     def start_simulation(self):
         """starts simulation"""
-        self.env.run(until=200)
+        self.env.run(until=400)
         print(self.base_station_monitor.data)
         print(self.destination_monitor.data)
         self.base_station_monitor.log_book("monitor_base_station.txt")
@@ -58,11 +66,11 @@ class Factory:
         print(tester.b.__next__()-1)
         print("maschine fängt an den Prozess abzuarbeiten")
         print(tester.i.__next__() - 1)
-        print("Überprüfe ob Maschine währenddessen kaputt geht")
-        print(tester.k.__next__())
+        print("Überprüfe ob Maschine währenddessen kaputt geht-repaired event wurde getriggerd in restart")
+        print(tester.k.__next__()-1)
         print("maschine hat Prozess abgeschlossen")
         print(tester.g.__next__() - 1)
-        print("maschine während laufendem Prozess kaputt gegangen")
+        print("maschine während laufendem Prozess kaputt gegangen, in interruped, rapaired wird gleich getriggerd")
         print(tester.f.__next__() - 1)
         print("maschine während laufendem Prozess kaputt gegangen aber noch vor Events")
         print(tester.h.__next__() - 1)
@@ -89,27 +97,18 @@ class ProductionManager:
         # ToDo: Monitor Processes
         # Mover fährt zu BaseStation und holt BaseElement ab und liefert es zu Ringstation
         step_base = Process(self.factory.env, product, self.factory.proc_id_gen.__next__(),
-                            outputs=[product.events["base_station"]],
-                            resources=[self.factory.base_station, self.factory.mover])
-        # Ringstation schraubt Ring auf BaseElement
-        step_ring = Process(self.factory.env, product, self.factory.proc_id_gen.__next__(),
-                            inputs=[product.events["base_station"]],
-                            outputs=[product.events["ring_station"]], resources=[self.factory.ring_machine_resource])
+                            outputs=[product.events["proc_cap"]],
+                            resources=[self.factory.base_station, self.factory.mover_resource, self.factory.ring_machine_resource])
         # Anfrage an Mover abholen um zu cap zugelangen, fährt zur Cap_station und läd dort Product ab
         step_cap = Process(self.factory.env, product, self.factory.proc_id_gen.__next__(),
-                           inputs=[product.events["ring_station"]],
-                           outputs=[product.events["cap_station"]],
-                           resources=[self.factory.mover])
-        # Cap_station montiert cap
-        step_cap2 = Process(self.factory.env, product, self.factory.proc_id_gen.__next__(),
-                            inputs=[product.events["cap_station"]],
-                            outputs=[product.events["del_station"]],
-                            resources=[self.factory.cap_machine_resource])
+                           inputs=[product.events["proc_cap"]],
+                           outputs=[product.events["proc_del"]],
+                           resources=[self.factory.mover_resource, self.factory.cap_machine_resource])
         # Anfrage an Mover um Produkt an Zieldestination abzugeben
         step_final = Process(self.factory.env, product, self.factory.proc_id_gen.__next__(),
-                             inputs=[product.events["del_station"]],
-                             outputs=[product.events["completed"]],
-                             resources=[self.factory.mover, self.factory.destination_station])
+                             inputs=[product.events["proc_del"]],
+                             outputs=[product.events["proc_completed"]],
+                             resources=[self.factory.mover_resource, self.factory.destination_station])
 
     def order(self):
         a = Product(factory.env, 1, settings.PRODUCT_C1)

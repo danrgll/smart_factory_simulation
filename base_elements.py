@@ -1,7 +1,7 @@
 import simpy
 import tester
-from product import Product
 from simpy import AllOf
+import random
 
 
 class Event(object):
@@ -41,16 +41,19 @@ class Process(object):
 
     def check_input_events(self):
         yield AllOf(self.env, [x.event for x in self.inputs])
-        self.env.process(self.running())
         self.get_resources()
+        self.env.process(self.running())
 
     def get_resources(self):
         """calls for required resources"""
         # Lösung der Resourcen reihenfolge anfragen. So in liste geben wie man es auch gerne nutzen würde.
         # ToDO: beobachten ob es zum Probelm wird das alle Resourcen gleichzeitig und nicht hintereinander angefragt werden.
-        start_next_proc_step = Event(self.env)
-        self.process_steps_events.append(start_next_proc_step)
+        #init_process = Event(self.env)  # wait until all inquiries have been initialized
+        start_next_proc_step_yield = Event(self.env)
+        start_next_proc_step_trigger = Event(self.env)
+        self.process_steps_events.append(start_next_proc_step_yield)
         for resource in self.resources:
+            self.process_steps_events.append(start_next_proc_step_trigger)
             get_event = Event(self.env)
             release_event = Event(self.env)
             self.get_events.append(get_event)
@@ -58,20 +61,27 @@ class Process(object):
             tester.d.__next__()
             # resource machine
             # ToDO: großes todo start_nex_proc über all einbauen.
-            self.env.process(resource.request_release_resource(get_event, release_event, start_next_proc_step, self.process_id, self.product))
-            start_next_proc_step = Event(self.env)
-            self.process_steps_events.append(start_next_proc_step)
+            self.env.process(resource.request_release_resource(get_event, release_event, start_next_proc_step_yield, start_next_proc_step_trigger, self.process_id, self.product))
+            start_next_proc_step_yield = start_next_proc_step_trigger
+            start_next_proc_step_trigger = Event(self.env)
+        #self.env.process(self.running(init_process))
+
 
     def running(self):
         # ToDo: Hier werden die einzelnen Resourcen abgearbeotet und wieder freigegeben am Ende wird das Output event getriggerd
         #ToDO: ProzessZeit rausnehmen. über event steuerung und Prozesszeit über die verwendete Resource steuern
         # wait until process got all resources which needed.weiteres problm..hier sollten prozesse erst gestartet werden in einer spezifischen reihenfolge
         # resourcennutzungs reihenfolge relevant. erst maschine, dann mover anfragen.
+        #init_process.trigger()
         yield AllOf(self.env, [x.event for x in self.get_events])
+        print("process startet")
+        print(self.process_steps_events)
         self.process_steps_events.pop(0).trigger()  # trigger event to start first process step
         yield AllOf(self.env, [x.event for x in self.process_steps_events])
+        print("process beendet")
         for o in self.outputs:
             o.trigger(value=self.process_id)
+            print("großen Process abgeschlossen")
 
 
 class Resource(object):
@@ -80,22 +90,31 @@ class Resource(object):
         self.location = location
         self.resource = simpy.Resource(self.env, capacity)
         self.resource_type = resource_type
-        self.processing_time = processing_time
+        self.processing_time_settings = processing_time #  (pt_mean, pt_sigma)
 
-    def request_release(self, get_resource: Event, release_resource: Event, start_next_proc_step: Event, proc_id, product: Product):
+    def request_release_resource(self, get_resource: Event, release_resource: Event, start_next_proc_step_yield: Event, start_next_proc_step_trigger: Event, proc_id, product):
         # ToDo: wo wird event getriggered?? in Klasse Proccesses als Output gute Möglichkeit
         # ToDo: Halte Resource solange sie benötigt wird
         """request and hold resource. After event is triggered release resource"""
+        #yield init_process.event
         request = self.resource.request()
         yield request
         product.stations_location[self.resource_type] = self.location
         product.events[self.resource_type].trigger()
         get_resource.trigger() # event to signal that you get the resource
+        print("bas_rigger")
         # ToDo yield event was Prozess startet. gesteuert über Product.
-        yield start_next_proc_step.event
-        yield self.env.timeout(self.processing_time)
-        yield release_resource.event
+        yield start_next_proc_step_yield.event
+        print("in base")
+        yield self.env.timeout(self.processing_time())
+        product.monitor_product.trigger()
+        start_next_proc_step_trigger.trigger()
+        # yield release_resource.event # keine Verwendung hier
         self.resource.release(request)
+
+    def processing_time(self):
+        print(self.processing_time_settings)
+        return random.normalvariate(self.processing_time_settings[0], self.processing_time_settings[1])
 
 
 class MachineResource:
@@ -103,12 +122,15 @@ class MachineResource:
     def __init__(self, env: simpy.Environment, machines: list, capacity: int, machine_type: str):
         self.env = env
         self.machines = machines
-        self.resource = simpy.Resource(self.env, capacity)
+        self.resource = simpy.PriorityResource(self.env, capacity)
         self.resource_type = "machine"
         self.machine_type = machine_type
+        for machine in self.machines:
+            machine.resource = self.resource
 
-    def request_release_resource(self, get_resource: Event, release_resource: Event, start_next_proc_step,
-                                 proc_id, product: Product):
+    def request_release_resource(self, get_resource: Event, release_resource: Event, start_next_proc_step_yield: Event, start_next_proc_step_trigger: Event,
+                                 proc_id, product):
+        #yield init_process.event
         request = self.resource.request()
         tester.e.__next__()
         yield request
@@ -124,11 +146,11 @@ class MachineResource:
             for machine in self.machines:
                 # ToDO: Maschine kein Input und geht kaputt. Sollte keine weiteren Prozesse erhalten in der Zeit. Übergebe resource und belege diese solange. Prio Resource? Lösung weil
                 # Ohne das Problem, dass es sich womöglich anstellt..aber muss mir P<rio dafür nochmal genau anschauen ob es das Probklem lösen könnte
-                if machine.ready is True and machine.broken is False:
+                if machine.in_progress is False and machine.broken is False:
                     tester.c.__next__()
-                    machine.ready = True
+                    machine.in_progress = True
                     get_resource.trigger()  # auslagern in Maschine
-                    self.env.process(machine.input(proc_id, release_resource, start_next_proc_step, product))  # übergebe process an maschine
+                    self.env.process(machine.input(proc_id, release_resource, start_next_proc_step_yield, start_next_proc_step_trigger, product))  # übergebe process an maschine
                     get_machine = True
                     break
         yield release_resource.event
@@ -143,18 +165,31 @@ class MachineResource:
 
 
 class MoverResource():
-    def __init__(self, env: simpy.Environment, mover: list, capacity: int):
+    def __init__(self, env: simpy.Environment, movers: list, capacity: int):
         self.env = env
-        self.mover = mover
-        self.resource = simpy.Resource(self.env,capacity=capacity)
+        self.movers = movers
+        self.resource = simpy.PriorityResource(self.env,capacity=capacity)
         self.resource_type = "mover"
+        print(movers)
+    def request_release_resource(self,get_resource: Event, release_resource: Event, start_next_proc_step_yield: Event, start_next_proc_step_trigger: Event,
+                                 proc_id, product):
+        #yield init_process.event
+        request = self.resource.request()
+        yield request
+        print("anfrage mover")
+        for mover in self.movers:
+            if mover.reserved is False:
+                print("teststes")
+                mover.reserved = True
+                self.env.process(mover.transport_update(product, get_resource, release_resource, start_next_proc_step_yield, start_next_proc_step_trigger))
+                break
+        yield release_resource.event
+        self.resource.release(request)
 
-    def request_release_resource(self, get_resource: Event, release_resource: Event, start_next_proc_step: Event,
-                                 proc_id, product: Product):
-        pass
+
 
     def print_stats(self, res):
-        print(f'{res.count} of {res.capacity} slots are allocated at {self.machine_type}.')
+        print(f'{res.count} of {res.capacity} slots are allocated at mover.')
         # print(f'  Users: {res.users}')
         # print(f'  Queued events: {res.queue}')
 

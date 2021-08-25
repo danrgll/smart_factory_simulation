@@ -25,7 +25,7 @@ class MonitorResource:
                 return ret
             return wrapper
 
-        for name in ['put', 'get', 'request', 'release']:
+        for name in ['request']:
             if hasattr(resource, name):
                 setattr(resource, name, get_wrapper(getattr(resource, name)))
 
@@ -54,39 +54,38 @@ class MonitorResource:
 
 
 class MonitorProduct:
-    def __init__(self, env: simpy.Environment, product_id, events: dict):
+    def __init__(self, env: simpy.Environment, id, monitor_event):
         self.env = env
-        self.product_id = product_id
-        self.events = events
+        self.product_id = id
+        self.monitor_event = monitor_event
+        self.process_steps = ["base_element provided", "ring_elements mounted", "cap_element mounted", "delivered"]
         self.data = []
+        self.file = open("product" + str(self.product_id) + ".txt", "w")
+        self.file.write(f"Manufacturing log of product {str(self.product_id)}: \n")
         self.env.process(self.monitor())
 
     def monitor(self):
-        if "base_station" in self.events:
-            yield self.events["base_station"].event
+        i = 0
+        while i <= 3:
+            print("testtooto")
+            yield self.monitor_event.event
+            self.file.write(f"{self.process_steps[i]} at time {self.env.now} \n")
             self.data.append(self.env.now)
-        if "ring_station" in self.events:
-            yield self.events["ring_station"].event
-            self.data.append(self.env.now)
-        if "cap_station" in self.events:
-            yield self.events["cap_station"].event
-            self.data.append(self.env.now)
-        if "del_station" in self.events:
-            yield self.events["del_station"].event
-            self.data.append(self.env.now)
-        if "completed" in self.events:
-            yield self.events["completed"].event
-            self.data.append(self.env.now)
-        self.log_book("product" + str(self.product_id))
+            i += 1
+        # self.log_book("product" + str(self.product_id))
+        self.file.close()
 
     def log_book(self, file: str):
         log_data = self.data
+        process_steps_copy = self.process_steps
         log_data.reverse()
-        with open(file, "w") as fobj:
-            fobj.write(f"Manufacturing log of product {str(self.product_id)}: \n")
-            while True:
-                try:
-                    item = log_data.pop()
-                    fobj.write(f"process step completed at time {item} \n")
-                except IndexError:
-                    break
+        process_steps_copy.reverse()
+        self.file.write(f"Manufacturing log of product {str(self.product_id)}: \n")
+        while True:
+            try:
+                item = log_data.pop()
+                proc = process_steps_copy.pop()
+                self.file.write(f"{proc} at time {item} \n")
+            except IndexError:
+                break
+        self.file.close()
