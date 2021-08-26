@@ -4,13 +4,9 @@ from itertools import count
 import simpy
 from base_elements import Event
 from product import Product
-
 class Machine(object):
-    # ToDO: Processingtime auslagern, nicht von Prozess bestimmen lassen sondern vom Porzesstyp.
-    #  Jede MAchine unterschiedlich vielleicht
-    # in eigene Datei verschwiende Config Speichern für Maschinen, welche Prozesse, wie lange brauchen
     """Machines that process something"""
-    def __init__(self, env: simpy.Environment, machine_id, machine_type, location, repair_time: float, time_to_change_proc_type: float,
+    def __init__(self, env: simpy.Environment, machine_id, machine_type, location, repairmen_resource, time_to_change_proc_type: float,
                  mean_time_to_failure: float, man_proc_time: list):
         # ToDo: man_proc noch nicht in Verwendung, proc_type noch nicht verwendet
         self.env = env
@@ -24,13 +20,14 @@ class Machine(object):
         self.current_process = None  # id from current process
         self.broken = False  # machine status, broken or not
         self.mean_time_to_failure = mean_time_to_failure
-        self.repair_time = repair_time
+        self.repairmen_resource = repairmen_resource
         self.man_proc_time = man_proc_time  # Manufacturing process types time
         self.current_proc_type = None  # current process type
         self.time_to_change_proc_type = time_to_change_proc_type
         self.processing_time_setting = None  # (pt_mean, pt_sigma)
         self.events = {
             "reactivate": Event(self.env),  # activate working
+            "wait_until_repaired": Event(self.env),
             "repaired": Event(self.env),  # machine breaks
             "process_completed": Event(self.env),
             "kick_process": Event(self.env)  # machine completed the process
@@ -43,7 +40,6 @@ class Machine(object):
 
     def input(self, proc_id, release_resource_event, start_next_proc_yield, start_next_proc_trigger: Event, product: Product):
         """Pass the new process to the machine and change the process type if necessary"""
-        print("testmachine")
         tester.b.__next__()
         product.stations_location[self.machine_type] = self.location
         product.events[self.machine_type].trigger()
@@ -54,9 +50,9 @@ class Machine(object):
             yield self.env.timeout(self.time_to_change_proc_type)  # time to change machine config to process new process type
         self.processing_time_setting = self.man_proc_time[len(product.properties[self.machine_type])-1]
         #ToDO: Dict in Produkt klasse not_porcessed yet aufmachen??
+        yield start_next_proc_yield.event
         restart = self.env.process(self.restart_process())
         self.env.process(self.finish(restart, release_resource_event, start_next_proc_trigger, product))
-        yield start_next_proc_yield.event
         if self.broken is True:
             tester.h.__next__()
         else:
@@ -89,9 +85,10 @@ class Machine(object):
                 if self.in_progress is False:
                     req = self.resource.request(priority=-1)
                     yield req
-                print(f"machine {self.machine_id} breaks @t={self.env.now}")
-                yield self.env.timeout(self.repair_time)
-                print(f"machine {self.machine_id} ready again @t={self.env.now}")
+                #print(f"machine {self.machine_id} breaks @t={self.env.now}")
+                self.env.process(self.repairmen_resource.request_release_resource(self.location, self.events["wait_until_repaired"]))
+                yield self.events["wait_until_repaired"].event
+                #print(f"machine {self.machine_id} ready again @t={self.env.now}")
                 self.broken = False
                 if self.in_progress is True:
                     tester.f.__next__()
@@ -121,7 +118,6 @@ class Machine(object):
         product.monitor_product.trigger()
         release_resource_event.trigger()
         start_next_proc_trigger.trigger()
-        print("Maschine fertig")
 
 
     def break_machine(self):
@@ -141,4 +137,4 @@ class Machine(object):
                 self.current_process
             )
             self.data.append(item)
-            print(f"machine {machine_id} completed process @t={self.env.now}")
+            #print(f"machine {machine_id} completed process @t={self.env.now}")

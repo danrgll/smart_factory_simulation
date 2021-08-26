@@ -74,14 +74,10 @@ class Process(object):
         # resourcennutzungs reihenfolge relevant. erst maschine, dann mover anfragen.
         #init_process.trigger()
         yield AllOf(self.env, [x.event for x in self.get_events])
-        print("process startet")
-        print(self.process_steps_events)
         self.process_steps_events.pop(0).trigger()  # trigger event to start first process step
         yield AllOf(self.env, [x.event for x in self.process_steps_events])
-        print("process beendet")
         for o in self.outputs:
             o.trigger(value=self.process_id)
-            print("großen Process abgeschlossen")
 
 
 class Resource(object):
@@ -102,10 +98,8 @@ class Resource(object):
         product.stations_location[self.resource_type] = self.location
         product.events[self.resource_type].trigger()
         get_resource.trigger() # event to signal that you get the resource
-        print("bas_rigger")
         # ToDo yield event was Prozess startet. gesteuert über Product.
         yield start_next_proc_step_yield.event
-        print("in base")
         yield self.env.timeout(self.processing_time())
         product.monitor_product.trigger()
         start_next_proc_step_trigger.trigger()
@@ -113,16 +107,14 @@ class Resource(object):
         self.resource.release(request)
 
     def processing_time(self):
-        print(self.processing_time_settings)
         return random.normalvariate(self.processing_time_settings[0], self.processing_time_settings[1])
 
-
-class MachineResource:
+class MachineResource(object):
     """manages a amount of produced machines as a resource"""
-    def __init__(self, env: simpy.Environment, machines: list, capacity: int, machine_type: str):
+    def __init__(self, env: simpy.Environment, machines: list, machine_type: str):
         self.env = env
         self.machines = machines
-        self.resource = simpy.PriorityResource(self.env, capacity)
+        self.resource = simpy.PriorityResource(self.env, capacity=len(self.machines))
         self.resource_type = "machine"
         self.machine_type = machine_type
         for machine in self.machines:
@@ -135,9 +127,7 @@ class MachineResource:
         tester.e.__next__()
         yield request
 
-        print("getResource")
         tester.a.__next__()
-        self.print_stats(self.resource)
         get_machine = False
         # ToDO: können wir nicht so machen. Komme in Endlosschleife...Prio auch keine gute idee weil was ist wenn alle Resourcen im letzten Moment besetzt.
         # ToDo: kicke womöglich falschen Prozess.herausfinden ob man Prozess auswählen kann..denke aber nicht fuck
@@ -156,30 +146,27 @@ class MachineResource:
         yield release_resource.event
         tester.j.__next__()
         self.resource.release(request)
-        self.print_stats(self.resource)
-
+    """
     def print_stats(self, res):
         print(f'{res.count} of {res.capacity} slots are allocated at {self.machine_type}.')
         # print(f'  Users: {res.users}')
         # print(f'  Queued events: {res.queue}')
+    """
 
-
-class MoverResource():
-    def __init__(self, env: simpy.Environment, movers: list, capacity: int):
+class MoverResource(object):
+    def __init__(self, env: simpy.Environment, movers: list):
         self.env = env
         self.movers = movers
-        self.resource = simpy.PriorityResource(self.env,capacity=capacity)
+        self.resource = simpy.PriorityResource(self.env,capacity=len(self.movers))
+        #ToDO: benötige ich ier überhaupt Resource_type
         self.resource_type = "mover"
-        print(movers)
     def request_release_resource(self,get_resource: Event, release_resource: Event, start_next_proc_step_yield: Event, start_next_proc_step_trigger: Event,
                                  proc_id, product):
         #yield init_process.event
         request = self.resource.request()
         yield request
-        print("anfrage mover")
         for mover in self.movers:
             if mover.reserved is False:
-                print("teststes")
                 mover.reserved = True
                 self.env.process(mover.transport_update(product, get_resource, release_resource, start_next_proc_step_yield, start_next_proc_step_trigger))
                 break
@@ -187,11 +174,37 @@ class MoverResource():
         self.resource.release(request)
 
 
-
+    """
     def print_stats(self, res):
         print(f'{res.count} of {res.capacity} slots are allocated at mover.')
         # print(f'  Users: {res.users}')
         # print(f'  Queued events: {res.queue}')
+    """
+
+class RepairmenResource(object):
+    def __init__(self, env, repairmen: list):
+        self.env = env
+        self.repairmen = repairmen
+        self.resource = simpy.Resource(self.env, capacity=len(repairmen))
+
+    def request_release_resource(self, job_location, wait_until_repaired: Event):
+        request = self.resource.request()
+        release_resource = Event(self.env)
+        yield request
+        for repairman in self.repairmen:
+            if repairman.busy is False:
+                repairman.busy = True
+                self.env.process(repairman.work(job_location, release_resource))
+                break
+        yield release_resource.event
+        self.resource.release(request)
+        wait_until_repaired.trigger()
+
+
+
+
+
+
 
 
 

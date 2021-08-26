@@ -1,6 +1,7 @@
 import base_elements
 from base_elements import Event, Process, Resource
 import monitor
+from repairman import Repairman
 from machine import Machine
 from mover import Mover
 import simpy
@@ -12,40 +13,55 @@ from product import Product
 class Factory:
     """create amount of resources(machines)"""
     def __init__(self):
-        # initialize resources
+        # initialize enviroment
         self.env = simpy.Environment()
+        # initialize basic resources
         self.base_station = Resource(self.env, "base", settings.base_location, 3, settings.PROC_TIME_BASE)
         self.storage = simpy.Container(self.env, capacity=24)
         self.destination_station = Resource(self.env,"del", settings.del_location, 1, (3,0.2))
+        # initialize repairman
+        self.repairman1 = Repairman(self.env, settings.repairman_location, settings.repair_time)
+        self.repairman2 = Repairman(self.env, settings.repairman_location, settings.repair_time)
+        self.repairman3 = Repairman(self.env, settings.repairman_location, settings.repair_time)
+        # group repairmen
+        self.repairmen_resource = base_elements.RepairmenResource(self.env,
+                                                                  [self.repairman1, self.repairman2, self.repairman3])
         # initialize mover
         self.mover1 = Mover(self.env, settings.mover1_location)
         self.mover2 = Mover(self.env, settings.mover2_location)
         self.mover3 = Mover(self.env, settings.mover3_location)
+        # group movers
+        self.mover_resource = base_elements.MoverResource(self.env, [self.mover1, self.mover2, self.mover3])
         # initialize machines
-        self.ring1 = Machine(self.env, 1,"ring", settings.ring_location1, 10.0, 5, settings.MEAN_TIME_TO_FAILURE, settings.PROC_TIME_RING)
-        self.ring2 = Machine(self.env, 2,"ring", settings.ring_location2, 10.0, 5, settings.MEAN_TIME_TO_FAILURE, settings.PROC_TIME_RING)
-        self.ring3 = Machine(self.env, 3, "ring", settings.ring_location2, 10.0, 5, settings.MEAN_TIME_TO_FAILURE, settings.PROC_TIME_RING)
-        self.cap1 = Machine(self.env, 4, "cap", settings.cap_location1, 10.0, 5, settings.MEAN_TIME_TO_FAILURE, settings.PROC_TIME_CAP)
-        self.cap2 = Machine(self.env, 5,"cap", settings.cap_location2, 10.0, 5, settings.MEAN_TIME_TO_FAILURE, settings.PROC_TIME_CAP)
-        self.cap3 = Machine(self.env, 6,"cap", settings.cap_location2, 10.0, 5, settings.MEAN_TIME_TO_FAILURE, settings.PROC_TIME_CAP)
+        self.ring1 = Machine(self.env, 1,"ring", settings.ring_location1, self.repairmen_resource, 5, settings.MEAN_TIME_TO_FAILURE, settings.PROC_TIME_RING)
+        self.ring2 = Machine(self.env, 2,"ring", settings.ring_location2, self.repairmen_resource, 5, settings.MEAN_TIME_TO_FAILURE, settings.PROC_TIME_RING)
+        self.ring3 = Machine(self.env, 3, "ring", settings.ring_location2, self.repairmen_resource, 5, settings.MEAN_TIME_TO_FAILURE, settings.PROC_TIME_RING)
+        self.cap1 = Machine(self.env, 4, "cap", settings.cap_location1, self.repairmen_resource, 5, settings.MEAN_TIME_TO_FAILURE, settings.PROC_TIME_CAP)
+        self.cap2 = Machine(self.env, 5,"cap", settings.cap_location2, self.repairmen_resource, 5, settings.MEAN_TIME_TO_FAILURE, settings.PROC_TIME_CAP)
+        self.cap3 = Machine(self.env, 6,"cap", settings.cap_location2, self.repairmen_resource, 5, settings.MEAN_TIME_TO_FAILURE, settings.PROC_TIME_CAP)
         # group machines to resources
-        self.ring_machine_resource = base_elements.MachineResource(self.env, [self.ring1, self.ring2, self.ring3], 2, "RingBase")
-        self.cap_machine_resource = base_elements.MachineResource(self.env, [self.cap1, self.cap2, self.cap3], 2, "CapBase")
+        self.ring_machine_resource = base_elements.MachineResource(self.env, [self.ring1, self.ring2, self.ring3], "RingBase")
+        self.cap_machine_resource = base_elements.MachineResource(self.env, [self.cap1, self.cap2, self.cap3], "CapBase")
         # monitor resources
         self.base_station_monitor = monitor.MonitorResource(self.env, self.base_station.resource, "pre")
+        self.ring_station_monitor = monitor.MonitorResource(self.env, self.ring_machine_resource.resource, "pre")
+        self.cap_station_monitor = monitor.MonitorResource(self.env, self.cap_machine_resource.resource, "pre")
         self.destination_monitor = monitor.MonitorResource(self.env, self.destination_station.resource, "pre")
-        # group movers
-        self.mover_resource = base_elements.MoverResource(self.env, [self.mover1, self.mover2, self.mover3], 3)
+        self.mover_monitor = monitor.MonitorResource(self.env, self.mover_resource.resource, "pre")
         # prozess id generator
         self.proc_id_gen = self.process_id_generator()
 
-    def start_simulation(self):
+    def start_simulation(self, time):
         """starts simulation"""
-        self.env.run(until=400)
-        print(self.base_station_monitor.data)
-        print(self.destination_monitor.data)
+        self.env.run(until=time)
+        #print(self.base_station_monitor.data)
+        #print(self.destination_monitor.data)
         self.base_station_monitor.log_book("monitor_base_station.txt")
         self.destination_monitor.log_book("monitor_destination.txt")
+        self.ring_station_monitor.log_book("monitor_ring_station.txt")
+        self.cap_station_monitor.log_book("monitor_cap_station.txt")
+        self.mover_monitor.log_book("monitor_mover.txt")
+        """
         print("monitor ring 1")
         print(self.ring1.data)
         print("monitor ring2")
@@ -76,7 +92,7 @@ class Factory:
         print(tester.h.__next__() - 1)
         print("resource maschine wird nach abschluss des prozesses wieder freigegeben")
         print(tester.j.__next__() - 1)
-
+        """
     def process_id_generator(self):
         # ToDO vielleicht eher in Produkt Klasse machen und jedes Produkt verwaltet seine Prozesse nach einer ID
         i = 0
@@ -91,12 +107,13 @@ class ProductionManager:
     def __init__(self, factory, strategy=None):
         self.factory = factory
         self.strategy = strategy
+        self.product_list = list()
 
     def produce_c1(self, product: Product):
         """manufactures product"""
         # ToDo: Monitor Processes
         # Mover fährt zu BaseStation und holt BaseElement ab und liefert es zu Ringstation
-        step_base = Process(self.factory.env, product, self.factory.proc_id_gen.__next__(),
+        step_base_ring = Process(self.factory.env, product, self.factory.proc_id_gen.__next__(),
                             outputs=[product.events["proc_cap"]],
                             resources=[self.factory.base_station, self.factory.mover_resource, self.factory.ring_machine_resource])
         # Anfrage an Mover abholen um zu cap zugelangen, fährt zur Cap_station und läd dort Product ab
@@ -110,24 +127,21 @@ class ProductionManager:
                              outputs=[product.events["proc_completed"]],
                              resources=[self.factory.mover_resource, self.factory.destination_station])
 
-    def order(self):
-        a = Product(factory.env, 1, settings.PRODUCT_C1)
-        b = Product(factory.env, 2, settings.PRODUCT_C1)
-        c = Product(factory.env, 3, settings.PRODUCT_C1)
-        d = Product(factory.env, 4, settings.PRODUCT_C1)
-        e = Product(factory.env, 5, settings.PRODUCT_C1)
-        f = Product(factory.env, 6, settings.PRODUCT_C1)
-        self.produce_c1(a)
-        self.produce_c1(b)
-        self.produce_c1(c)
-        self.produce_c1(d)
-        self.produce_c1(e)
-        self.produce_c1(f)
+    def order(self, products):
+        """
+        """
+        for product_type in products:
+            if product_type[0] == "c1":
+                for i in range(0, product_type[1]):
+                    self.product_list.append(Product(self.factory.env, i, product_type[2]))
+            for element in self.product_list:
+                self.produce_c1(element)
+
 
 
 
 if __name__ == '__main__':
     factory = Factory()
     production_manager = ProductionManager(factory)
-    production_manager.order()
-    factory.start_simulation()
+    production_manager.order([("c1",6, settings.PRODUCT_C1)])
+    factory.start_simulation(400)
