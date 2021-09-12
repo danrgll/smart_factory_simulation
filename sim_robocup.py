@@ -31,7 +31,7 @@ class Factory:
         # initialize base
         self.base1 = Machine(self.env, 1, "base", BASE_LOCATION, self.repairmen_resource, PROC_TYPE_INIT_BS, TIME_TO_CHANGE_PROC_TYPE_BS, MEAN_TIME_TO_FAILURE_BS, PROC_TIME_BASE)
         self.base_machine_resource = base_elements.MachineResource(self.env, [self.base1],
-                                                                   "BaseBase")
+                                                                   "BaseStation")
         # initialize mover
         self.mover1 = Mover(self.env,1 , MOVER_LOCATION1, TIME_TO_PICK_UP)
         self.mover2 = Mover(self.env,2,  MOVER_LOCATION2, TIME_TO_PICK_UP)
@@ -46,11 +46,11 @@ class Factory:
         self.cap2 = Machine(self.env, 2, "cap", CAP_LOCATION2, self.repairmen_resource, PROC_TYPE_INIT_CS, TIME_TO_CHANGE_PROC_TYPE_CS, MEAN_TIME_TO_FAILURE, PROC_TIME_CAP)
         self.cap3 = Machine(self.env, 3, "cap", CAP_LOCATION3, self.repairmen_resource, PROC_TYPE_INIT_CS, TIME_TO_CHANGE_PROC_TYPE_CS, MEAN_TIME_TO_FAILURE, PROC_TIME_CAP)
         # group machines to resources
-        self.ring_machine_resource = base_elements.MachineResource(self.env, [self.ring1, self.ring2, self.ring3], "RingBase")
-        self.cap_machine_resource = base_elements.MachineResource(self.env, [self.cap1, self.cap2, self.cap3], "CapBase")
+        self.ring_machine_resource = base_elements.MachineResource(self.env, [self.ring1, self.ring2, self.ring3], "RingStation")
+        self.cap_machine_resource = base_elements.MachineResource(self.env, [self.cap1, self.cap2, self.cap3], "CapStation")
         # monitor resources
         #self.base_station_monitor = monitor.MonitorResource(self.env, self.base_station.resource, "pre")
-        self.base_station_monitor = monitor.MonitorResource(self.env,self.base_machine_resource.resource,"post")
+        self.base_station_monitor = monitor.MonitorResource(self.env,self.base_machine_resource.resource,"pre")
         self.ring_station_monitor = monitor.MonitorResource(self.env, self.ring_machine_resource.resource, "pre")
         self.cap_station_monitor = monitor.MonitorResource(self.env, self.cap_machine_resource.resource, "pre")
         self.destination_monitor = monitor.MonitorResource(self.env, self.destination_station.resource, "post")
@@ -65,11 +65,6 @@ class Factory:
         self.env.run(until=time)
         #print(self.base_station_monitor.data)
         #print(self.destination_monitor.data)
-        self.base_station_monitor.log_book("monitor_base_station.txt")
-        self.destination_monitor.log_book("monitor_destination.txt")
-        self.ring_station_monitor.log_book("monitor_ring_station.txt")
-        self.cap_station_monitor.log_book("monitor_cap_station.txt")
-        self.mover_monitor.log_book("monitor_mover.txt")
         """
         print("monitor ring 1")
         print(self.ring1.data)
@@ -123,7 +118,6 @@ class ProductionManager:
         self.factory.env.process(self.order_done(time))
 
     def produce_steps_c0(self, product):
-        print("c0")
         step_base_cap = Process(self.factory.env, product, self.factory.proc_id_gen.__next__(),
                                  outputs=[product.events["proc_del"]],
                                  resources=[self.factory.base_machine_resource, self.factory.mover_resource,
@@ -140,7 +134,6 @@ class ProductionManager:
         """manufactures product"""
         # ToDo: Monitor Processes
         # Mover fährt zu BaseStation und holt BaseElement ab und liefert es zu Ringstation
-        print("cx")
         step_base_ring = Process(self.factory.env, product, self.factory.proc_id_gen.__next__(),
                             outputs=[product.events["proc_cap"]],
                             resources=[self.factory.base_machine_resource, self.factory.mover_resource, self.factory.ring_machine_resource],
@@ -171,7 +164,6 @@ class ProductionManager:
         production_sequence = self.strategy.create_ordering(self.factory.env, self.point_counter, products, id_list)
         for product in production_sequence:
             self.production_sequence_infos.append(product.product_infos())
-        print(len(self.production_sequence_infos))
         for product in production_sequence:
             if product.proc_steps == "cc0":
                 self.produce_steps_c0(product)
@@ -183,9 +175,15 @@ class ProductionManager:
     def order_done(self, time):
         yield simpy.AllOf(self.factory.env, [x.event for x in self.proc_compl])
         data = self.factory.destination_monitor.data
+        print(data)
         plot.plot_product_finish(data, time)
         data1 = self.factory.base_station_monitor.data
         plot.plot_product_finish(data1, time)
+        self.factory.base_station_monitor.log_book("monitor_base_station.txt")
+        self.factory.destination_monitor.log_book("monitor_destination.txt")
+        self.factory.ring_station_monitor.log_book("monitor_ring_station.txt")
+        self.factory.cap_station_monitor.log_book("monitor_cap_station.txt")
+        self.factory.mover_monitor.log_book("monitor_mover.txt")
         #print(f"{self.point_counter.counter} achieved at time point {self.factory.env.now}")
 
 
@@ -205,7 +203,7 @@ def main(order, sim_time):
 
 if __name__ == '__main__':
     time = 60000
-    main([(1, 1, "cc0", PRODUCT_CC2, 15000), (2, 1, "ccx", PRODUCT_CC2, 10000), (3, 1, "ccx", PRODUCT_CC3, 16000)],time)
+    main([(1, 1, "cc0", PRODUCT_CC0, 15000), (2, 1, "ccx", PRODUCT_CC2, 10000), (3, 1, "ccx", PRODUCT_CC3, 16000)],time)
     #data = results.destination_monitor.data
     #print(data)
     #plot.plot_product_finish(data,time)

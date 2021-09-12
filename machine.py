@@ -102,6 +102,8 @@ class Machine(object):
                     tester.f.__next__()
                     self.events["repaired"].trigger()
                 else:
+                    if self.machine_type == "base":
+                        print("ich bin hier")
                     self.resource.release(req)
 
     def restart_process(self):

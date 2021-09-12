@@ -72,7 +72,7 @@ class Process(object):
         self.process_steps_events.pop(0).trigger()  # trigger event to start first process step
         yield AllOf(self.env, [x.event for x in self.process_steps_events])
         for o in self.outputs:
-            o.trigger()
+            o.trigger(value=self.process_id)
 
 
 class Resource(object):
@@ -87,7 +87,7 @@ class Resource(object):
         # ToDo: wo wird event getriggered?? in Klasse Proccesses als Output gute Möglichkeit
         """request and hold resource. After event is triggered release resource"""
         #yield init_process.event
-        request = self.resource.request(priority)
+        request = self.resource.request()
         yield request
         product.stations_location[self.resource_type] = self.location
         product.events[self.resource_type].trigger()
@@ -118,7 +118,7 @@ class MachineResource(object):
     def request_release_resource(self, get_resource: Event, release_resource: Event, start_next_proc_step_yield: Event, start_next_proc_step_trigger: Event,
                                  proc_id, product, priority):
         #yield init_process.event
-        request = self.resource.request(priority)
+        request = self.resource.request()
         tester.e.__next__()
         yield request
         tester.a.__next__()
@@ -133,6 +133,8 @@ class MachineResource(object):
                     break
         yield release_resource.event
         tester.j.__next__()
+        if self.machine_type == "BaseStation":
+            print("scheise")
         self.resource.release(request)
     """
     def print_stats(self, res):
@@ -151,7 +153,7 @@ class MoverResource(object):
     def request_release_resource(self, get_resource: Event, release_resource: Event, start_next_proc_step_yield: Event, start_next_proc_step_trigger: Event,
                                  proc_id, product, priority):
         #yield init_process.event
-        request = self.resource.request(priority)
+        request = self.resource.request()
         yield request
         for mover in self.movers:
             if mover.reserved is False:
