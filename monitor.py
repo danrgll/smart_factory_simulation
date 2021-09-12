@@ -1,5 +1,6 @@
 import simpy
 from functools import wraps
+from base_elements import Event
 
 
 class MonitorResource:
@@ -25,7 +26,7 @@ class MonitorResource:
                 return ret
             return wrapper
 
-        for name in ['request']:
+        for name in ['release', 'request']:
             if hasattr(resource, name):
                 setattr(resource, name, get_wrapper(getattr(resource, name)))
 
@@ -54,11 +55,16 @@ class MonitorResource:
 
 
 class MonitorProduct:
-    def __init__(self, env: simpy.Environment, id, monitor_event):
+    def __init__(self, env: simpy.Environment, id, proc_steps):
         self.env = env
         self.product_id = id
-        self.monitor_event = monitor_event
-        self.process_steps = ["base_element provided", "ring_elements mounted", "cap_element mounted", "delivered"]
+        self.current_machine = None
+        self.monitor_event = Event(self.env)
+        # Wir noch garnicht sinnvoll verwendet
+        if proc_steps == "cc0":
+            self.monitor_process_steps = ["base_element provided", "cap_element mounted", "delivered"]
+        else:
+            self.monitor_process_steps = ["base_element provided", "ring_elements mounted", "cap_element mounted", "delivered"]
         self.data = []
         #self.file = open("product" + str(self.product_id) + ".txt", "w")
         #self.file.write(f"Manufacturing log of product {str(self.product_id)}: \n")
@@ -66,12 +72,12 @@ class MonitorProduct:
 
     def monitor(self):
         i = 0
-        while i <= 3:
+        while i is True:
             yield self.monitor_event.event
-            #self.file.write(f"{self.process_steps[i]} at time {self.env.now} \n")
+            self.file.write(f"{self.monitor_process_steps[i]} at time {self.env.now} \n")
             self.data.append(self.env.now)
             i += 1
-        # self.log_book("product" + str(self.product_id))
+        #self.log_book("product" + str(self.product_id))
         #self.file.close()
 
     def log_book(self, file: str):
@@ -88,3 +94,9 @@ class MonitorProduct:
             except IndexError:
                 break
         self.file.close()
+
+class Monitor_Destination:
+    def __init__(self):
+        self.data = []
+    def monitor_process(self, product, time):
+        self.data.append([product.order_number, time])

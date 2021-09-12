@@ -17,7 +17,7 @@ class Repairman(object):
         self.location = new_job_location
         yield self.env.timeout(self.repair_time())
         self.busy = False
-        release_resource.trigger(False)
+        release_resource.trigger()
 
     def repair_time(self):
         """return the processing_time"""

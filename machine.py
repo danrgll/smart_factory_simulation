@@ -3,12 +3,12 @@ import tester
 from itertools import count
 import simpy
 from base_elements import Event
-from product import Product
+
+
 class Machine(object):
     """Machines that process something"""
-    def __init__(self, env: simpy.Environment, machine_id, machine_type, location, repairmen_resource, time_to_change_proc_type: float,
+    def __init__(self, env: simpy.Environment, machine_id, machine_type, location, repairmen_resource, current_proc_type, time_to_change_proc_type: tuple,
                  mean_time_to_failure: float, man_proc_time: list):
-        # ToDo: man_proc noch nicht in Verwendung, proc_type noch nicht verwendet
         self.env = env
         self.machine_id = machine_id
         self.resource = None  # init in Resource Manager
@@ -22,51 +22,61 @@ class Machine(object):
         self.mean_time_to_failure = mean_time_to_failure
         self.repairmen_resource = repairmen_resource
         self.man_proc_time = man_proc_time  # Manufacturing process types time
-        self.current_proc_type = None  # current process type
-        self.time_to_change_proc_type = time_to_change_proc_type
+        self.current_proc_type = current_proc_type # current process type
+        self.time_to_change_proc_type_setting = time_to_change_proc_type  # (mean, sigma)
         self.processing_time_setting = None  # (pt_mean, pt_sigma)
         self.events = {
             "reactivate": Event(self.env),  # activate working
             "wait_until_repaired": Event(self.env),
-            "repaired": Event(self.env),  # machine breaks
-            "process_completed": Event(self.env),
-            "kick_process": Event(self.env)  # machine completed the process
+            "repaired": Event(self.env),
+            "process_completed": Event(self.env)
         }
         self.data = []  # monitor processes
         self.process = env.process(self.working())
         self.env.process(self.break_machine())
         self.env.process(self.monitor(self.machine_id))
 
-
-    def input(self, proc_id, release_resource_event, start_next_proc_yield, start_next_proc_trigger: Event, product: Product):
+    def input(self, proc_id, get_resource, release_resource_event, start_next_proc_yield: Event, start_next_proc_trigger: Event, product):
         """Pass the new process to the machine and change the process type if necessary"""
         tester.b.__next__()
         product.stations_location[self.machine_type] = self.location
         product.events[self.machine_type].trigger()
+        get_resource.trigger()
         self.current_process = proc_id  # hands over the id of the current process
-        #ToDO: current proc_type macht keinen Sinn, 3 Farben initialisieren und mit denen sollte dann einzeln Verglichen werden die [properties]
-        if self.current_proc_type != product.properties[self.machine_type]:
-            self.current_proc_type = product.properties[self.machine_type]
-            yield self.env.timeout(self.time_to_change_proc_type)  # time to change machine config to process new process type
+        not_needed_c = self.current_proc_type.copy()
+        colors_alrd_avaibl = list()
+        for color in product.properties[self.machine_type]:
+            if color in not_needed_c:
+                not_needed_c.remove(color)
+                colors_alrd_avaibl.append(color)
+        for color in product.properties[self.machine_type]:
+            if color not in colors_alrd_avaibl:
+                c = not_needed_c.pop()
+                self.current_proc_type.remove(c)
+                self.current_proc_type.append(color)
+                yield self.env.timeout(self.time_to_change_proc_type())  # time to change machine config to process new process type
         self.processing_time_setting = self.man_proc_time[len(product.properties[self.machine_type])-1]
-        #ToDO: Dict in Produkt klasse not_porcessed yet aufmachen??
-        yield start_next_proc_yield.event
+        if start_next_proc_yield.event.triggered is not True:
+            yield start_next_proc_yield.event
         restart = self.env.process(self.restart_process())
         self.env.process(self.finish(restart, release_resource_event, start_next_proc_trigger, product))
         if self.broken is True:
             tester.h.__next__()
         else:
             self.events["reactivate"].trigger()
-        self.env.process(self.restart_process())
 
     def processing_time(self):
         """return the processing_time"""
-        return random.normalvariate(self.processing_time_setting[0], self.processing_time_setting[1])
+        return abs(random.normalvariate(self.processing_time_setting[0], self.processing_time_setting[1]))
 
     def time_to_failure(self):
         """Return time until next failure for a machine."""
         fail_at = random.expovariate(self.mean_time_to_failure)
         return fail_at
+
+    def time_to_change_proc_type(self):
+        """Return time which machine needs to change proc type"""
+        return abs(random.normalvariate(self.time_to_change_proc_type_setting[0], self.time_to_change_proc_type_setting[1]))
 
     def working(self):
         """Processes pending processes
@@ -76,9 +86,7 @@ class Machine(object):
             try:
                 yield self.events["reactivate"].event  # triggered in current_manufacturing_process
                 tester.i.__next__()
-                yield self.env.timeout(self.processing_time()) # ToDo: Prozess mit mehreren Resourcen. Processing Time falsch
-                # yield in process def running ToDo noch nicht Optimal. Wenn Process Mover und Machine
-                # ToDo: bekommen hat beginnt er einfach abzuarbeiten,proc_event kann so bleiben aber in Mover noch Event implementieren
+                yield self.env.timeout(self.processing_time())
                 self.events["process_completed"].trigger()
             except simpy.Interrupt:
                 self.broken = True
@@ -97,8 +105,6 @@ class Machine(object):
                     self.resource.release(req)
 
     def restart_process(self):
-        #ToDO: überlegen ob hier durch aufrufe etwas blödes passieren kann. wird aufgerufen zum
-        # Beispiel nachdem es von einem Prozess zuvor losgetreten wurde. Muss auch zum Ende kommen
         while True:
             try:
                 yield self.events["repaired"].event
@@ -115,7 +121,7 @@ class Machine(object):
         restart.interrupt()
         self.in_progress = False  # signal machine is free
         self.output.append(product)
-        product.monitor_product.trigger()
+        product.monitor.monitor_event.trigger()
         release_resource_event.trigger()
         start_next_proc_trigger.trigger()
 

@@ -2,14 +2,17 @@ import simpy
 import numpy as np
 from base_elements import Event
 from product import Product
+import random
 
 
 class Mover(object):
-    def __init__(self, env: simpy.Environment, location: np.array):
+    def __init__(self, env: simpy.Environment, id, location: np.array, time_to_pick_up: tuple):
         self.env = env
+        self.id = id
         self.location = location  # coordinates of his location
         self.pick_up_location = None
         self.time_to_pick_up_location = None
+        self.time_to_pick_up_m_s = time_to_pick_up
         self.time_to_destination = None
         self.destination = None
         self.reserved = False  # market whether mover is already in use
@@ -37,11 +40,15 @@ class Mover(object):
             yield self.events["reactivate"].event
             yield self.env.timeout(self.time_to_pick_up_location)  # time to drive to pick up location
             # ToDo Output Funktion einrichten bei den Resourcen? Lösung
+            yield self.env.timeout(self.time_to_pick_up())
             # ToDo: Event das den Austausch des Produktes irg wie markiert damit Resource losgelassen wird.
             yield self.env.timeout(self.time_to_destination)  # time to drive to destination
             self.location = self.destination
             self.start_next_proc_trigger.trigger()
             self.reserved = False
             self.release_resource.trigger()
+
+    def time_to_pick_up(self):
+        return abs(random.normalvariate(self.time_to_pick_up_m_s[0], self.time_to_pick_up_m_s[1]))
 
 
