@@ -32,7 +32,7 @@ class FIFOManufacturingStrategy(OrderingStrategy):
             else:
                 for i in range(0, specification[1]):
                     self.production_sequence.append(ProductCCX(env, id_generator, specification[2], specification[4], point_counter, specification[3]))
-                    i += 1
+                    id_generator += 1
         return self.production_sequence
 
 

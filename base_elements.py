@@ -87,15 +87,15 @@ class Resource(object):
         # ToDo: wo wird event getriggered?? in Klasse Proccesses als Output gute Möglichkeit
         """request and hold resource. After event is triggered release resource"""
         #yield init_process.event
-        request = self.resource.request()
+        request = self.resource.request(priority)
         yield request
         product.stations_location[self.resource_type] = self.location
         product.events[self.resource_type].trigger()
-        get_resource.trigger() # event to signal that you get the resource
+        get_resource.trigger()  # event to signal that you get the resource
         # ToDo yield event was Prozess startet. gesteuert über Product.
         yield start_next_proc_step_yield.event
         yield self.env.timeout(self.processing_time())
-        product.monitor.monitor_event.trigger()
+        product.monitor.monitor_event.trigger()  # monitor that you are done with production
         start_next_proc_step_trigger.trigger()
         # yield release_resource.event # keine Verwendung hier
         self.resource.release(request)
@@ -118,7 +118,7 @@ class MachineResource(object):
     def request_release_resource(self, get_resource: Event, release_resource: Event, start_next_proc_step_yield: Event, start_next_proc_step_trigger: Event,
                                  proc_id, product, priority):
         #yield init_process.event
-        request = self.resource.request()
+        request = self.resource.request(priority)
         tester.e.__next__()
         yield request
         tester.a.__next__()
@@ -133,8 +133,6 @@ class MachineResource(object):
                     break
         yield release_resource.event
         tester.j.__next__()
-        if self.machine_type == "BaseStation":
-            print("scheise")
         self.resource.release(request)
     """
     def print_stats(self, res):
@@ -153,7 +151,7 @@ class MoverResource(object):
     def request_release_resource(self, get_resource: Event, release_resource: Event, start_next_proc_step_yield: Event, start_next_proc_step_trigger: Event,
                                  proc_id, product, priority):
         #yield init_process.event
-        request = self.resource.request()
+        request = self.resource.request(priority)
         yield request
         for mover in self.movers:
             if mover.reserved is False:

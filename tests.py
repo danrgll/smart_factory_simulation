@@ -1,4 +1,4 @@
-from sim_robocup import Factory, ProductionManager, RewardCounter, main
+from sim_robocup import SmartFactory, ProductionManager, RewardCounter, main
 import settings
 import strategy
 import unittest
@@ -39,7 +39,7 @@ def test_factory(simulation_time, order):
     >>> observation_c1 == [4]*200 and observation_c0 == [3]*10
     True
     """
-    factory = Factory()
+    factory = SmartFactory()
     counter = RewardCounter()
     production_manager = ProductionManager(factory, strategy.FIFOManufacturingStrategy(), counter)
     production_manager.order(order)

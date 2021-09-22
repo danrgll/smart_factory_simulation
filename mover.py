@@ -38,11 +38,11 @@ class Mover(object):
         while True:
             # wait for event that signal mover to work
             yield self.events["reactivate"].event
-            yield self.env.timeout(self.time_to_pick_up_location)  # time to drive to pick up location
+            yield self.env.timeout(self.time_to_pick_up_location*4)  # time to drive to pick up location 1m=4s
             # ToDo Output Funktion einrichten bei den Resourcen? Lösung
             yield self.env.timeout(self.time_to_pick_up())
             # ToDo: Event das den Austausch des Produktes irg wie markiert damit Resource losgelassen wird.
-            yield self.env.timeout(self.time_to_destination)  # time to drive to destination
+            yield self.env.timeout(self.time_to_destination*4)  # time to drive to destination 1m=4s
             self.location = self.destination
             self.start_next_proc_trigger.trigger()
             self.reserved = False
