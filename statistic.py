@@ -63,6 +63,7 @@ class MeanStat:
 
     def check_if_all_data(self):
         self.stat_counter +=1
+        print(f"wb{self.stat_counter}")
         if self.stat_counter == self.num:
             self.get_mean_stat()
             self.get_points_final_time()

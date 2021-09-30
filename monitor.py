@@ -69,17 +69,21 @@ class MonitorProduct:
         self.data = []
         #self.file = open("product" + str(self.product_id) + ".txt", "w")
         #self.file.write(f"Manufacturing log of product {str(self.product_id)}: \n")
-        self.env.process(self.monitor())
+        #self.file.close()
+        #self.env.process(self.monitor())
 
-    def monitor(self):
-        i = 0
-        while True:
-            yield self.monitor_event.event
+    def monitor(self,mode, time, location):
+        #i = 0
+        #while True:
+            #yield self.monitor_event.event
             #self.file.write(f"{self.monitor_process_steps[i]} at time {self.env.now} \n")
-            self.data.append(self.env.now)
-            i += 1
+        #self.file = open("product" + str(self.product_id) + ".txt", "a")
+        #self.file.write(f"{location} at time {time}, mode: {mode}\n")
+        self.data.append(self.env.now)
+            #i += 1
         #self.log_book("product" + str(self.product_id))
         #self.file.close()
+        #return
 
     def log_book(self, file: str):
         log_data = self.data

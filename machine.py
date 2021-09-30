@@ -18,6 +18,7 @@ class Machine(object):
         self.in_progress = False  # process input
         self.active_process = False
         self.current_process = None  # id from current process
+        self.current_product = None
         self.broken = False  # machine status, broken or not
         self.mean_time_to_failure = mean_time_to_failure
         self.repairmen_resource = repairmen_resource
@@ -29,41 +30,98 @@ class Machine(object):
             "reactivate": Event(self.env),  # activate working
             "wait_until_repaired": Event(self.env),
             "repaired": Event(self.env),
+            "end_break": Event(self.env),
             "process_completed": Event(self.env)
         }
         self.data = []  # monitor processes
         self.process = env.process(self.working())
-        self.env.process(self.break_machine())
+        self.break_process = self.env.process(self.break_machine())
         self.env.process(self.monitor(self.machine_id))
+        self.input_process = None
+        self.marker = False
 
-    def input(self, proc_id, get_resource, release_resource_event, start_next_proc_yield: Event, start_next_proc_trigger: Event, product):
+    def input(self, proc_id, get_resource, release_resource_event, start_next_proc_yield: Event, start_next_proc_trigger: Event, product, process_suceed, new_try):
         """Pass the new process to the machine and change the process type if necessary"""
-        tester.b.__next__()
-        product.stations_location[self.machine_type] = self.location
-        product.events[self.machine_type].trigger()
-        get_resource.trigger()
-        self.current_process = proc_id  # hands over the id of the current process
-        not_needed_c = self.current_proc_type.copy()
-        colors_alrd_avaibl = list()
-        for color in product.properties[self.machine_type]:
-            if color in not_needed_c:
-                not_needed_c.remove(color)
-                colors_alrd_avaibl.append(color)
-        for color in product.properties[self.machine_type]:
-            if color not in colors_alrd_avaibl:
-                c = not_needed_c.pop()
-                self.current_proc_type.remove(c)
-                self.current_proc_type.append(color)
-                yield self.env.timeout(self.time_to_change_proc_type())  # time to change machine config to process new process type
-        self.processing_time_setting = self.man_proc_time[len(product.properties[self.machine_type])-1]
-        if start_next_proc_yield.event.triggered is not True:
-            yield start_next_proc_yield.event
-        restart = self.env.process(self.restart_process())
-        self.env.process(self.finish(restart, release_resource_event, start_next_proc_trigger, product))
-        if self.broken is True:
-            tester.h.__next__()
-        else:
-            self.events["reactivate"].trigger()
+        try:
+            product.monitor.monitor("BEREIT", self.env.now, self.machine_type)
+            #print("enter the game")
+            #print("machine infos")
+            print(proc_id, self.machine_id, self.machine_type)
+            tester.b.__next__()
+            # ToDO Problem wenn schon location geupdated wurde
+            loc_update = self.env.process(self.send_location_to_product(product))
+            get_resource.trigger()
+            self.current_product = product
+            self.current_process = proc_id  # hands over the id of the current process
+            not_needed_c = self.current_proc_type.copy()
+            #print(self.machine_type)
+            #print(f"current proc type{self.current_proc_type},{self.machine_id},{self.current_process}")
+            #print(f"current proctype copy needed{not_needed_c},{self.machine_id},{self.current_process}")
+            #print(f"properties{product.properties[self.machine_type]},{self.machine_id},{self.current_process}")
+            colors_alrd_avaibl = list()
+            #i = False
+            for color in product.properties[self.machine_type]:
+                if color in not_needed_c:
+                    not_needed_c.remove(color)
+                    colors_alrd_avaibl.append(color)
+            #print(f"not needed vor changing {not_needed_c}")
+            for color in product.properties[self.machine_type]:
+                #print(f"not needed for{not_needed_c},{self.machine_id},{self.current_process}")
+                #print(f"current proc for{self.current_proc_type},{self.machine_id},{self.current_process}")
+                if color not in colors_alrd_avaibl:
+                    yield self.env.timeout(self.time_to_change_proc_type())
+                    c = not_needed_c.pop()
+                    self.current_proc_type.remove(c)
+                    #print(f"{color},{self.machine_id}")
+                    self.current_proc_type.append(color)
+                    #print(f"current2{self.current_proc_type},{self.machine_id},{self.current_process}")
+                    #i = True
+            #if i is True:
+                #yield self.env.timeout(self.time_to_change_proc_type())
+            #print(self.env.now)
+            #print("change")
+            #yield self.env.timeout(self.time_to_change_proc_type())  # time to change machine config to process new process type
+            #print(f"sim was auch immer1 {self.env.now},{self.machine_id},{self.current_process}")
+            #print(f"hallo fertigg {self.current_proc_type},{self.machine_id},{self.current_process,self.current_product.product_infos()}")
+            self.processing_time_setting = self.man_proc_time[len(product.properties[self.machine_type])-1]
+            if start_next_proc_yield.event.triggered is not True:
+                print(f"yield next proc event{self.machine_type,product.processes[self.current_process].got_all_resources, product.product_infos()}")
+                #ToDO Rüstzeit läuft weiter obwohl Maschine kaputt, argumentieren über, Mover fahren und holen Zeug könnte man also so lassen
+                yield start_next_proc_yield.event
+            self.marker = True
+            print(f" after yield next proc event{self.machine_type,product.processes[self.current_process].got_all_resources, product.product_infos()}")
+            # self.active_process = True
+            #print(f"bin soweit {self.machine_type}, {self.machine_id}")
+            restart = self.env.process(self.restart_process())
+            self.env.process(
+                self.finish(restart, release_resource_event, start_next_proc_trigger, product, process_suceed))
+            if self.broken is True:
+                tester.h.__next__()
+            else:
+                self.events["reactivate"].trigger()
+            print(f"hallo wieso, {self.machine_id, self.machine_type, product.product_infos()}")
+        except simpy.Interrupt:
+            product.monitor.monitor("UNTERBROCHEN BEIM WARTEN", self.env.now, self.machine_type)
+            self.marker = True
+            print(f"Davor {self.current_product.processes[self.current_process].got_all_resources,self.machine_id},")
+            print(f"Danach {self.current_product.processes[self.current_process].got_all_resources,self.machine_id}")
+            loc_update.interrupt()
+            self.in_progress = False
+            print(f"{self.machine_type}loc_update wird gleich interrupted {self.machine_id,self.current_process, self.current_product.product_infos(), self.in_progress, self.broken}")
+            print("in progress")
+            print(self.in_progress)
+            release_resource_event.trigger()
+            self.marker = False
+            new_try.trigger()
+
+
+    def send_location_to_product(self, product):
+        try:
+            yield product.events["update_location"].event
+            product.stations_location[self.machine_type] = self.location
+            product.events[self.machine_type].trigger()
+        except simpy.Interrupt:
+            return
 
     def processing_time(self):
         """return the processing_time"""
@@ -85,14 +143,43 @@ class Machine(object):
         while True:
             try:
                 yield self.events["reactivate"].event  # triggered in current_manufacturing_process
+                self.current_product.monitor.monitor("STARTE FERTIGUNG", self.env.now, self.machine_type)
                 tester.i.__next__()
                 yield self.env.timeout(self.processing_time())
                 self.events["process_completed"].trigger()
             except simpy.Interrupt:
                 self.broken = True
-                if self.in_progress is False:
-                    req = self.resource.request(priority=-1)
+                print(f"machine {self.machine_id} breaks @t={self.env.now}")
+                print(f"break begin {self.in_progress}, {self.machine_id}, {self.current_process}")
+                #if self.active_process is False and self.in_progress is True:
+                    #self.in_progress = False
+                #if self.current_process is not None and self.current_product.processes[
+                    #self.current_process].got_all_resources
+                if self.current_product is not None:
+                    if self.current_product.processes[self.current_process].got_all_resources is False and self.in_progress is True and self.marker is False:
+                        self.current_product.monitor.monitor("BREAK DER MASCHINE BEIM WARTEN", self.env.now, self.machine_type)
+                        print("hallo1")
+                        self.input_process.interrupt()
+                        req = self.resource.request(priority=-1, preempt=False)
+                        print(req)
+                        yield req
+                    elif self.in_progress is False:
+                        #self.current_product.monitor.monitor("UNTERBROCHEN IM PROZESS", self.env.now, self.machine_type)
+                        print("hallo2")
+                        req = self.resource.request(priority=-1,preempt=False)
+                        print(req)
+                        yield req
+                    else:
+                        self.current_product.monitor.monitor("UNTERBROCHEN IM PROZESS", self.env.now,
+                                                         self.machine_type)
+
+                elif self.in_progress is False:
+                    #self.current_product.monitor.monitor("UNTERBROCHEN OHNE PROZESS", self.env.now, self.machine_type)
+                    print("hallo3")
+                    req = self.resource.request(priority=-1, preempt=False)
+                    print(req)
                     yield req
+
                 #print(f"machine {self.machine_id} breaks @t={self.env.now}")
                 self.env.process(self.repairmen_resource.request_release_resource(self.location, self.events["wait_until_repaired"]))
                 yield self.events["wait_until_repaired"].event
@@ -102,36 +189,49 @@ class Machine(object):
                     tester.f.__next__()
                     self.events["repaired"].trigger()
                 else:
+                    print(f"break end {self.in_progress}, {self.machine_id}")
                     self.resource.release(req)
+                print(f"machine {self.machine_id} end breaks @t={self.env.now}")
+                self.events["end_break"].trigger()
 
     def restart_process(self):
         while True:
             try:
                 yield self.events["repaired"].event
                 tester.k.__next__()
-                self.env.timeout(5)
+                #self.env.timeout(5)
                 self.events["reactivate"].trigger()
             except simpy.Interrupt:
                 return
 
 
-    def finish(self, restart, release_resource_event, start_next_proc_trigger, product):
+    def finish(self, restart, release_resource_event, start_next_proc_trigger, product, proc_succeed):
         yield self.events["process_completed"].event
+        print(f"im done,{self.machine_type, self.machine_id, self.current_product.product_infos()}")
         tester.g.__next__()
         restart.interrupt()
+        self.marker = False
         self.in_progress = False  # signal machine is free
+        self.current_product = None
+        self.current_process = None
+        proc_succeed.trigger()
+        #ToDO was für output...
         self.output.append(product)
-        product.monitor.monitor_event.trigger()
+        # product.monitor.monitor_event.trigger()
+        product.monitor.monitor("FERTIG",self.env.now,self.machine_type)
         release_resource_event.trigger()
         start_next_proc_trigger.trigger()
 
 
     def break_machine(self):
         """Break the machine every now and then."""
-        while True:
-            yield self.env.timeout(self.time_to_failure())
-            self.process.interrupt()
-            yield self.events["repaired"].event
+        try:
+            while True:
+                yield self.env.timeout(self.time_to_failure())
+                self.process.interrupt()
+                yield self.events["end_break"].event
+        except simpy.Interrupt:
+            return
 
     def monitor(self, machine_id):
         """Monitor processes."""
@@ -144,3 +244,6 @@ class Machine(object):
             )
             self.data.append(item)
             #print(f"machine {machine_id} completed process @t={self.env.now}")
+
+    def end(self):
+        self.break_process.interrupt()
