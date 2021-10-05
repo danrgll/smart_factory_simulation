@@ -61,29 +61,19 @@ class MonitorProduct:
         self.product_id = id
         self.current_machine = None
         self.monitor_event = Event(self.env)
-        # Wir noch garnicht sinnvoll verwendet
-        if proc_steps == "cc0":
-            self.monitor_process_steps = ["base_element provided", "cap_element mounted", "delivered"]
-        else:
-            self.monitor_process_steps = ["base_element provided", "ring_elements mounted", "cap_element mounted", "delivered"]
         self.data = []
-        #self.file = open("product" + str(self.product_id) + ".txt", "w")
-        #self.file.write(f"Manufacturing log of product {str(self.product_id)}: \n")
-        #self.file.close()
-        #self.env.process(self.monitor())
+        self.file = open("product" + str(self.product_id) + ".txt", "w")
+        self.file.write(f"Manufacturing log of product {str(self.product_id)}: \n")
+        self.file.close()
 
-    def monitor(self,mode, time, location):
-        #i = 0
-        #while True:
-            #yield self.monitor_event.event
-            #self.file.write(f"{self.monitor_process_steps[i]} at time {self.env.now} \n")
-        #self.file = open("product" + str(self.product_id) + ".txt", "a")
-        #self.file.write(f"{location} at time {time}, mode: {mode}\n")
-        self.data.append(self.env.now)
-            #i += 1
-        #self.log_book("product" + str(self.product_id))
-        #self.file.close()
-        #return
+    def monitor(self,mode, time, location, id= None):
+        self.file = open("product" + str(self.product_id) + ".txt", "a")
+        if id is not None:
+            self.file.write(f"{location} {id} at time {time}, mode: {mode}\n")
+        else:
+            self.file.write(f"{location} at time {time}, mode: {mode}\n")
+        self.data.append(time)
+        self.file.close()
 
     def log_book(self, file: str):
         log_data = self.data

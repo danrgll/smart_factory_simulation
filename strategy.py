@@ -18,22 +18,20 @@ class OrderingStrategy(ABC):
         self.production_sequence = list()
 
     @abstractmethod
-    def create_ordering(self, env, point_counter, order: list, id_list):
+    def create_ordering(self, env, point_counter, order: list):
         pass
 
 
 class FIFOManufacturingStrategy(OrderingStrategy):
-    def create_ordering(self, env, point_counter, order, id_list):
+    def create_ordering(self, env, point_counter, order):
+        id_generator = 1
         for specification in order:
-            id_generator = id_list[specification[0] -1]
-            if specification[2] == "cc0":
-                for i in range(0,specification[1]):
+            if specification["proc_steps"] == "cc0":
                     #Product(env: simpy.Environment, id: int, proc_steps, time_limit_completion, counter, properties: )
-                    self.production_sequence.append(ProductCC0(env, id_generator, specification[2], specification[4], point_counter, specification[3]))
+                    self.production_sequence.append(ProductCC0(env, id_generator, point_counter, specification))
                     id_generator += 1
             else:
-                for i in range(0, specification[1]):
-                    self.production_sequence.append(ProductCCX(env, id_generator, specification[2], specification[4], point_counter, specification[3]))
+                    self.production_sequence.append(ProductCCX(env, id_generator, point_counter, specification))
                     id_generator += 1
         prios = list(range(1,len(self.production_sequence)+1))
         zip_list = list(zip(self.production_sequence, prios))

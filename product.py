@@ -4,16 +4,17 @@ import simpy
 from abc import ABC, abstractmethod
 
 class Product(ABC):
-    def __init__(self, env: simpy.Environment, id: int, proc_steps, time_limit_completion, counter, properties: dict):
+    def __init__(self, env: simpy.Environment, id: int, counter, properties: dict):
         self.env = env
         self.id = id
-        self.proc_steps = proc_steps
-        self.time_limit_of_completion = time_limit_completion
+        self.properties = properties
+        self.proc_steps = properties["proc_steps"]
+        self.time_limit_of_completion = properties["time"]
         self.properties = properties  # [base_color, [ring_colors], cap_color]
         self.current_location = None
         self.next_destination_location = None
         self.processes = dict()
-        self.monitor = MonitorProduct(self.env, self.id, proc_steps)  # monitor manufacturing
+        self.monitor = MonitorProduct(self.env, self.id, self.proc_steps)  # monitor manufacturing
         self.env.process(self.update_location())
         self.env.process(self.check_points(counter))
 
@@ -35,8 +36,8 @@ class Product(ABC):
 
 
 class ProductCC0(Product):
-    def __init__(self, env, id, proc_steps,time_limit_completion, counter, properties):
-        super().__init__(env, id, proc_steps, time_limit_completion, counter, properties)
+    def __init__(self, env, id, counter, properties):
+        super().__init__(env, id, counter, properties)
         self.stations_location = {"base": None,
                                   "cap": None,
                                   "del": None
@@ -65,8 +66,8 @@ class ProductCC0(Product):
 
 
 class ProductCCX(Product):
-    def __init__(self, env, id, proc_steps,time_limit_completion, counter, properties):
-        super().__init__(env, id, proc_steps,time_limit_completion, counter, properties)
+    def __init__(self, env, id, counter, properties):
+        super().__init__(env, id, counter, properties)
         self.stations_location = {"base": None,
                                   "ring": None,
                                   "cap": None,

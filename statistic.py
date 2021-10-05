@@ -1,5 +1,6 @@
 import pandas as pd
 import numpy as np
+import math
 import matplotlib.pyplot as plt
 
 
@@ -51,7 +52,7 @@ class FileNameGenerator:
         return name
 
 class MeanStat:
-    def __init__(self, num):
+    def __init__(self, num=None):
         self.stats = list()
         self.modified_data = {'Produkt ID': list(),'Produktionszeitlimit': list(), 'Zeitpunkt der Fertigstellung': list(),
                               'Limit eingehalten': list(), 'mögliche Punkte': list(), 'Punkte erhalten': list(),
@@ -60,6 +61,10 @@ class MeanStat:
         self.num = num
         self.df_mean = None
         self.stat_counter = 0
+        self.mean_points = []
+        self.mean_time = []
+        self.time_x = []
+        self.points_y = []
 
     def check_if_all_data(self):
         self.stat_counter +=1
@@ -67,6 +72,7 @@ class MeanStat:
         if self.stat_counter == self.num:
             self.get_mean_stat()
             self.get_points_final_time()
+            self.get_mean_point_time()
 
 
     def get_mean_stat(self):
@@ -77,21 +83,73 @@ class MeanStat:
         self.df_mean = group_by_row_index.mean()
         print(self.df_mean)
         self.df_mean.plot(x='Zeitpunkt der Fertigstellung', y='Produkt ID', kind = 'scatter')
-        plt.show()
+        #plt.show()
 
     def get_points_final_time(self):
-        points_y = list()
-        time_x = list()
+        max_over_all = 0
+        min_over_all = None
         for element in self.stats:
-            points_y.append(element['Punkte erhalten'].sum())
-            time_x.append(element['Zeitpunkt der Fertigstellung'].max())
+            self.points_y.append(element['Punkte erhalten'].sum())
+            max = element['Zeitpunkt der Fertigstellung'].max()
+            self.time_x.append(max)
+            if max > max_over_all:
+                max_over_all = max
+            if min_over_all is None:
+                min_over_all = max
+            elif min_over_all > max:
+                min_over_all = max
+        #ToDO hier Schrittgröße noch festlegen
+        i = max_over_all-min_over_all
+        step_size = len(str(i))
+        round_up = int(math.ceil(max_over_all/1000))*1000
+        plt.xticks(np.arange(0, max_over_all, step=1000))
         plt.ylim(0,self.stats[0]['mögliche Punkte'].sum())
         print(self.stats[0]['mögliche Punkte'].sum())
         plt.title('TEst')
         plt.xlabel('Fertig mit Produktion')
         plt.ylabel('Punkte')
-        plt.scatter(time_x,points_y)
+        plt.scatter(self.time_x,self.points_y)
+        #plt.show()
+        #plt.xticks(ticks=[])
+
+    def get_mean_point_time(self):
+        counter_points = 0
+        counter_time = 0
+        points = []
+        time =[]
+        for element in self.stats:
+            points.append(element['Punkte erhalten'].sum())
+            time.append(element['Zeitpunkt der Fertigstellung'].max())
+        for point in points:
+            counter_points += point
+        for t in time:
+            counter_time += t
+        self.mean_points.append(counter_points/len(points))
+        self.mean_time.append(counter_time/len(time))
+        plt.title('Test')
+        plt.xlabel('Durchschnittlicher Zeitpunkt der Fertigstellung')
+        plt.ylabel('Durchschnitt erhaltene Punkte')
+        plt.scatter(self.mean_time,self.mean_points)
+        #plt.show()
+
+    def plot_mean_points_over_set(self):
+        plt.title('Punkte')
+        plt.xlabel('Durchschnittlicher Zeitpunkt der Fertigstellung')
+        plt.ylabel('Durchschnitt erhaltene Punkte')
+        #plt.axis([xmin, xmax, ymin, ymax])
+        plt.axis([0, 3000, 0, 1000])
+        plt.scatter(self.mean_time, self.mean_points)
         plt.show()
+
+    def plot_all_time_points(self):
+        plt.title('Punkte')
+        plt.xlabel('Fertig mit Produktion')
+        plt.ylabel('Punkte')
+        plt.scatter(self.time_x, self.points_y)
+        plt.show()
+
+
+
 
 
 

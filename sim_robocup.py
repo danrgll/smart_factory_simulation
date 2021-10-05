@@ -5,14 +5,14 @@ from repairman import Repairman
 from machine import Machine
 from mover import Mover
 import simpy
-import tester
 from settings import *
 import strategy
 import plot
 import random
 from statistic import Stat, FileNameGenerator,MeanStat
 
-# ToDO: mögliche Priority bei den Masdchinen Resourcen wieder rausnehmen wenn nicht benötigt.
+#ToDO: mögliche Priority bei den Masdchinen Resourcen wieder rausnehmen wenn nicht benötigt.
+#ToDo: Locations der MAschinen in einer Liste speichern..und über diese mit i iterieren lassen.
 class SmartFactory:
     """create amount of resources(machines)"""
     def __init__(self, n_mover, n_base, n_ring, n_cap, n_repairman, des):
@@ -32,18 +32,18 @@ class SmartFactory:
         self.repairmen_resource = base_elements.RepairmenResource(self.env,self.repair_mans)
         # initialize base
         for i in range(0,n_base):
-            self.base_stations.append(Machine(self.env, i, "base", BASE_LOCATION, self.repairmen_resource, PROC_TYPE_INIT_BS.copy(), TIME_TO_CHANGE_PROC_TYPE_BS, 1/random.randint(700,1000), PROC_TIME_BASE))
+            self.base_stations.append(Machine(self.env, i, "base", BASE_LOCATION[i], self.repairmen_resource, PROC_TYPE_INIT_BS.copy(), TIME_TO_CHANGE_PROC_TYPE_BS, 1/random.randint(1000,2000), PROC_TIME_BASE))
         self.base_machine_resource = base_elements.MachineResource(self.env,self.base_stations,"BaseStation")
         # initialize mover
         for i in range(0, n_mover):
-            self.movers.append(Mover(self.env,i, MOVER_LOCATION1, TIME_TO_PICK_UP))
+            self.movers.append(Mover(self.env,i, MOVER_LOCATION[i], TIME_TO_PICK_UP))
         # group movers
         self.mover_resource = base_elements.MoverResource(self.env,self.movers)
         # initialize machines
         for i in range(0,n_ring):
-            self.ring_stations.append(Machine(self.env, i, "ring", RING_LOCATION1, self.repairmen_resource, PROC_TYPE_INIT_RS.copy(), TIME_TO_CHANGE_PROC_TYPE_RS, 1/random.randint(700,1000), PROC_TIME_RING))
+            self.ring_stations.append(Machine(self.env, i, "ring", RING_LOCATION[i], self.repairmen_resource, PROC_TYPE_INIT_RS.copy(), TIME_TO_CHANGE_PROC_TYPE_RS, 1/random.randint(1000,2000), PROC_TIME_RING))
         for i in range(0, n_cap):
-            self.cap_stations.append(Machine(self.env, i, "cap", CAP_LOCATION1, self.repairmen_resource, PROC_TYPE_INIT_CS.copy(), TIME_TO_CHANGE_PROC_TYPE_CS, 1/random.randint(700,1000), PROC_TIME_CAP))
+            self.cap_stations.append(Machine(self.env, i, "cap", CAP_LOCATION[i], self.repairmen_resource, PROC_TYPE_INIT_CS.copy(), TIME_TO_CHANGE_PROC_TYPE_CS, 1/random.randint(1000,2000), PROC_TIME_CAP))
         # group machines to resources
         self.ring_machine_resource = base_elements.MachineResource(self.env, self.ring_stations, "RingStation")
         self.cap_machine_resource = base_elements.MachineResource(self.env, self.cap_stations, "CapStation")
@@ -71,7 +71,7 @@ class SmartFactory:
 
 
 
-class ProductionManager:
+class ProductionPlanner:
     def __init__(self, factory, strategy: strategy.OrderingStrategy, counter, mean_stat=None):
         self.factory = factory
         self.strategy = strategy
@@ -127,12 +127,12 @@ class ProductionManager:
         """
         sorts products according to production sequence
         """
-        id_list = list()
-        i = 1
-        for partial_order in products:
-            id_list.append(i)
-            i += partial_order[1]
-        self.production_sequence = self.strategy.create_ordering(self.factory.env, self.point_counter, products, id_list)
+        #id_list = list()
+        #i = 1
+        #for partial_order in products:
+            #id_list.append(i)
+            #i += partial_order[1]
+        self.production_sequence = self.strategy.create_ordering(self.factory.env, self.point_counter, products)
         for product in self.production_sequence:
             self.production_sequence_infos.append(product[0].product_infos())
         print(self.production_sequence_infos)
@@ -152,7 +152,6 @@ class ProductionManager:
     def order_done(self, mean_stat):
         print(f"order_done {self.proc_compl}")
         yield simpy.AllOf(self.factory.env, [x.event for x in self.proc_compl]) or self.factory.env.now
-        #
         for machine in self.factory.base_stations:
             machine.end()
         for machine in self.factory.ring_stations:
@@ -180,23 +179,37 @@ class RewardCounter:
         self.counter = 0
 
 
-def main(order, mean_stat=None, mover=3, base=1, ring=2, cap=2, repair=1, des=1):
+def main(order, mean_stat=None, mover=6, base=2, ring=4, cap=4, repair=2, des=2):
     #(3,1,2,2,1,1)
     factory = SmartFactory(mover, base, ring, cap, repair, des)
     counter = RewardCounter()
-    production_manager = ProductionManager(factory, strategy.RandomOrderStrategy(), counter, mean_stat)
+    production_manager = ProductionPlanner(factory, strategy.FIFOManufacturingStrategy(), counter, mean_stat)
     production_manager.order(order)
     factory.start_simulation()
     return factory
 
 
 if __name__ == '__main__':
-    num = 1000
-    mean_stat = MeanStat(num)
-    for i in range(0,num):
-        # 1020 = 17min game time
-        # 9 Produkte bei Robocup
+    num = 300
+    mean_mean_stat = MeanStat()
+    safe_mean_stat = []
+    # 1020 = 17min game time
+    # 9 Produkte bei Robocup
         #(2, 1, "cc0", PRODUCT_CC0_2, 6010)]
-        main([(1,30, "cc3", PRODUCT_CC3_1, 1020),(2, 20, "cc2", PRODUCT_CC2_1, 1020), (3, 20, "cc0", PRODUCT_CC0_2, 1020), (4, 20, "cc1", PRODUCT_CC1_2, 1020)], mean_stat=mean_stat)
+    for order in RANDOM_CHOICE_20:
+        mean_stat = MeanStat(num)
+        for i in range(0, num):
+            main(order, mean_stat=mean_stat)
+        safe_mean_stat.append(mean_stat)
+    for element in safe_mean_stat:
+        mean_mean_stat.stats.append(element.df_mean)
+        mean_mean_stat.mean_time.append(element.mean_time)
+        mean_mean_stat.mean_points.append(element.mean_points)
+        mean_mean_stat.points_y.append(element.points_y)
+        mean_mean_stat.time_x.append(element.time_x)
+    mean_mean_stat.get_mean_stat()
+    mean_mean_stat.plot_mean_points_over_set()
+    mean_mean_stat.plot_all_time_points()
+
 
 

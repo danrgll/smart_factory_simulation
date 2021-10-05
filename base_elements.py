@@ -55,7 +55,7 @@ class Process(object):
         for resource in self.resources:
             self.process_steps_events.append(start_next_proc_step_trigger)
             get_event = Event(self.env, False)
-            # ToDO: wo brauche ich den release Evebt
+            # ToDO: wo brauche ich den release Event überhaupt, besser eig in den Ressourcenmanager selber implementieren
             release_event = Event(self.env)
             self.get_events.append(get_event)
             tester.d.__next__()
@@ -79,10 +79,11 @@ class Process(object):
                     o.trigger(value=self.process_id)
                 proc_completed = True
             except simpy.Interrupt:
-                return
+                pass
 
-
+#ToDO: Ressourccenmanager zu einer Klasse zusammenfassen?
 class Resource(object):
+    #ToDo umbennen?
     def __init__(self, env: simpy.Environment, resource_type, location, capacity: int, processing_time):
         self.env = env
         self.location = location
@@ -110,22 +111,15 @@ class Resource(object):
                 product.monitor.monitor("BEKOMMEN", self.env.now, self.resource_type)
                 try:
                     t = True
+                    currently_using = Event(self.env, False)
+                    self.current_processes.append([priority, product, proc_id, currently_using])
+                    self.number_of_current_proc += 1
                     if flag is True:
-                        if proc.got_all_resources is True:
+                        if proc.got_all_resources is True and current_event.event.triggered is False:
+                            #ToDO Wenn der Fall Eintritt ist Krise weil die Abarbeitung dann weg ist.
+                            product.monitor.monitor("KRITISCHER ERROR", self.env.now, self.resource_type)
                             yield current_event.event
                             t = False
-                        elif current_event.event.triggered is not True:
-                            currently_using = Event(self.env, False)
-                            self.current_processes.append([priority, product, proc_id, currently_using])
-                            self.number_of_current_proc += 1
-                        else:
-                            currently_using = Event(self.env, False)
-                            self.current_processes.append([priority, product, proc_id, currently_using])
-                            self.number_of_current_proc += 1
-                    else:
-                        currently_using = Event(self.env, False)
-                        self.current_processes.append([priority, product, proc_id, currently_using])
-                        self.number_of_current_proc += 1
                     if t is True:
                         c = self.env.process(self.send_location_to_product(product))
                         get_resource.trigger()  # event to signal that you get the resource
@@ -134,10 +128,9 @@ class Resource(object):
                         product.monitor.monitor("WURDE FERTIGGESTELLT",self.env.now, self.resource_type)
                         start_next_proc_step_trigger.trigger()
                         completed = True
-                        if [priority, product, proc_id, currently_using] in self.current_processes:
-                            self.current_processes.remove([priority, product, proc_id, currently_using])
-                            self.number_of_current_proc -= 1
-                        currently_using.trigger()
+                    if [priority, product, proc_id, currently_using] in self.current_processes:
+                        self.current_processes.remove([priority, product, proc_id, currently_using])
+                        self.number_of_current_proc -= 1
 
                 except simpy.Interrupt:
                     product.monitor.monitor("UNTERBROCHEN", self.env.now, self.resource_type)
@@ -146,7 +139,11 @@ class Resource(object):
                     product.processes[proc_id].get_events.append(get_resource)
                     product.processes[proc_id].process_running.interrupt()
                     c.interrupt()
-                    currently_using.trigger()
+                    if [priority, product, proc_id, currently_using] in self.current_processes:
+                        self.current_processes.remove([priority, product, proc_id, currently_using])
+                        self.number_of_current_proc -= 1
+                currently_using.trigger()
+
 
     def send_location_to_product(self, product):
         try:
@@ -196,25 +193,32 @@ class MachineResource(object):
                 try:
                     product.monitor.monitor("BEKOMMT", self.env.now, self.machine_type)
                     t = True
-                    currently_using = Event(self.env, False)
-                    self.current_processes.append([priority, product, proc_id, currently_using])
-                    self.number_of_current_proc += 1
+                    #currently_using = Event(self.env, False)
+                    #critical = Event(self.env, False)
+                    #self.current_processes.append([priority, product, proc_id, currently_using, critical])
+                    #self.number_of_current_proc += 1
                     if flag is True:
+                        #if critical_before.event.triggered is False:
                         if proc.got_all_resources is True and current_event.event.triggered is False:
                             product.monitor.monitor("PROZESS DER BÖSE", self.env.now, self.machine_type)
                             yield current_event.event
                             t = False
+                    #critical.trigger()
                     if t is True:
+                        currently_using = Event(self.env, False)
+                        #critical = Event(self.env, False)
+                        self.current_processes.append([priority, product, proc_id, currently_using])
+                        self.number_of_current_proc += 1
                         n = True
                         get_machine = False
                         for machine in self.machines:
-                            print(machine.machine_id, machine.in_progress, machine.broken)
+                            print(machine.id, machine.in_progress, machine.broken)
                         while get_machine is False:
                             for machine in self.machines:
                                 if machine.in_progress is False and machine.broken is False:
-                                    tester.c.__next__()
                                     machine.in_progress = True
-                                    print(f"{self.machine_type}get machine, {machine.machine_type, machine.machine_id, product.product_infos()}")
+                                    print(f"{self.machine_type}get machine, {machine.machine_type, machine.id, product.product_infos()}")
+                                    c = machine
                                     machine.input_process = self.env.process(machine.input(proc_id,get_resource, release_resource, start_next_proc_step_yield, start_next_proc_step_trigger, product, machine_process_succeed, new_try))# übergebe process an maschine
                                     get_machine = True
                                     break
@@ -227,14 +231,16 @@ class MachineResource(object):
                             product.processes[proc_id].get_events.append(get_resource)
                             product.processes[proc_id].process_running.interrupt()
                         n = False
-                    if [priority, product, proc_id, currently_using] in self.current_processes:
-                        self.current_processes.remove([priority, product, proc_id, currently_using])
-                        self.number_of_current_proc -= 1
-                    currently_using.trigger()
+                        if [priority, product, proc_id, currently_using] in self.current_processes:
+                            self.current_processes.remove([priority, product, proc_id, currently_using])
+                            self.number_of_current_proc -= 1
+                        yield self.env.timeout(1)
+                        currently_using.trigger()
                 except simpy.Interrupt:
-                    if [priority, product, proc_id, currently_using] in self.current_processes:
-                        self.current_processes.remove([priority, product, proc_id, currently_using])
-                        self.number_of_current_proc -= 1
+                    if t is True:
+                        if [priority, product, proc_id, currently_using] in self.current_processes:
+                            self.current_processes.remove([priority, product, proc_id, currently_using])
+                            self.number_of_current_proc -= 1
                     if product.processes[proc_id].got_all_resources is False and n is True:
                         product.processes[proc_id].get_events.remove(get_resource)
                         get_resource = Event(self.env, False)
@@ -248,8 +254,8 @@ class MachineResource(object):
                                 print(machine.machine_id,machine.in_progress, machine.broken)
                         if machine_process_succeed.event.triggered is True:
                             completed = True
-                            currently_using.trigger()
-                    if n is False:
+                            n = False
+                    if n is False and t is True:
                         currently_using.trigger()
                 if n is True:
                     yield new_try.event
@@ -323,9 +329,11 @@ class MoverResource(object):
                         product.processes[proc_id].get_events.append(get_resource)
                         product.processes[proc_id].process_running.interrupt()
                         c.interrupt()
-                    currently_using.trigger()
+                    if n is False:
+                        currently_using.trigger()
                 if n is True:
                     yield new_try.event
+                    currently_using.trigger()
                     n = False
 
 

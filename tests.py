@@ -1,4 +1,4 @@
-from sim_robocup import SmartFactory, ProductionManager, RewardCounter, main
+from sim_robocup import SmartFactory, ProductionPlanner, RewardCounter, main
 import settings
 import strategy
 import unittest
@@ -41,7 +41,7 @@ def test_factory(simulation_time, order):
     """
     factory = SmartFactory()
     counter = RewardCounter()
-    production_manager = ProductionManager(factory, strategy.FIFOManufacturingStrategy(), counter)
+    production_manager = ProductionPlanner(factory, strategy.FIFOManufacturingStrategy(), counter)
     production_manager.order(order)
     factory.start_simulation(simulation_time)
     return production_manager

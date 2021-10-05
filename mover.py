@@ -27,14 +27,13 @@ class Mover(object):
     def transport_update(self,proc_id, product: Product, get_resource, release_resource: Event, start_next_proc_yield: Event, start_next_proc_trigger: Event, new_try):
         try:
             self.current_product = product
-            product.monitor.monitor("BEREIT FÜR TRANSPORT", self.env.now, "mover")
+            product.monitor.monitor("BEREIT FÜR TRANSPORT", self.env.now, "mover", self.id)
             self.start_next_proc_trigger = start_next_proc_trigger
             self.release_resource = release_resource
             get_resource.trigger()
             yield start_next_proc_yield.event
             if product.events["new_location"].event.triggered is not True:
                 yield product.events["new_location"].event
-            print(f"mover {self.id}, drive product {product.product_infos()}")
             self.pick_up_location = product.current_location
             self.time_to_pick_up_location = np.linalg.norm(self.location-self.pick_up_location)  # calculates Euclidean distance
             self.destination = product.next_destination_location
@@ -43,9 +42,7 @@ class Mover(object):
             self.events["reactivate"].trigger()
 
         except simpy.Interrupt:
-            product.monitor.monitor("UNTERBROCHEN", self.env.now, "mover")
-            #if product.processes[proc_id].got_all_resources is True:
-                #return Exception
+            product.monitor.monitor("UNTERBROCHEN", self.env.now, "mover", self.id)
             self.reserved = False
             new_try.trigger()
             return
