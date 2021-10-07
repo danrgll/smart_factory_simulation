@@ -23,10 +23,12 @@ class Mover(object):
         }
         self.env.process(self.work())
         self.current_product = None
+        self.proc_alive = None
 
-    def transport_update(self,proc_id, product: Product, get_resource, release_resource: Event, start_next_proc_yield: Event, start_next_proc_trigger: Event, new_try):
+    def transport_update(self,proc_id, product: Product, get_resource, release_resource: Event, start_next_proc_yield: Event, start_next_proc_trigger: Event, new_try, proc_succeed):
         try:
             self.current_product = product
+            self.proc_alive = proc_succeed
             product.monitor.monitor("BEREIT FÜR TRANSPORT", self.env.now, "mover", self.id)
             self.start_next_proc_trigger = start_next_proc_trigger
             self.release_resource = release_resource
@@ -59,6 +61,7 @@ class Mover(object):
             yield self.env.timeout(self.time_to_destination*4)  # time to drive to destination 1m=4s
             yield self.env.timeout(self.time_to_pick_up())
             self.location = self.destination
+            self.proc_alive.trigger()
             self.start_next_proc_trigger.trigger()
             self.reserved = False
             self.release_resource.trigger()
