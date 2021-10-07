@@ -57,6 +57,7 @@ class Mover(object):
             yield self.env.timeout(self.time_to_pick_up())
             # ToDo: Event das den Austausch des Produktes irg wie markiert damit Resource losgelassen wird.
             yield self.env.timeout(self.time_to_destination*4)  # time to drive to destination 1m=4s
+            yield self.env.timeout(self.time_to_pick_up())
             self.location = self.destination
             self.start_next_proc_trigger.trigger()
             self.reserved = False

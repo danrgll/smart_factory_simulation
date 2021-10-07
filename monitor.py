@@ -67,11 +67,14 @@ class MonitorProduct:
         self.file.close()
 
     def monitor(self,mode, time, location, id= None):
+        #self.log_all = open("log_all.txt", "a")
         self.file = open("product" + str(self.product_id) + ".txt", "a")
         if id is not None:
             self.file.write(f"{location} {id} at time {time}, mode: {mode}\n")
+            #self.log_all.write(f"{location} {id} at time {time}, mode: {mode}\n")
         else:
             self.file.write(f"{location} at time {time}, mode: {mode}\n")
+            #self.log_all.write(f"{location} at time {time}, mode: {mode}\n")
         self.data.append(time)
         self.file.close()
 

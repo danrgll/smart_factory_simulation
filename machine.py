@@ -126,14 +126,21 @@ class Machine(object):
                     if self.current_product.processes[self.current_process].got_all_resources is False and self.in_progress is True and self.marker is False:
                         self.current_product.monitor.monitor("BREAK DER MASCHINE BEIM WARTEN", self.env.now, self.machine_type, self.id)
                         #self.input_process.interrupt()
-                        req = self.resource.request(priority=-1, preempt=False)
+                        req = self.resource.request(priority=-10, preempt=False)
+                        print(f"Request von Maschine selber{req}")
+                        print(f"after put in queue{self.resource.queue}")
+                        print(f"after put in users{self.resource.users}")
                         print(req)
                         self.input_process.interrupt()
                         yield req
+                        print("after yiled in machine broke, req, users, queue")
+                        print(req)
+                        print(self.resource.users)
+                        print(self.resource.queue)
                         #self.kick_process.trigger()
 
                     elif self.in_progress is False:
-                        req = self.resource.request(priority=-1,preempt=False)
+                        req = self.resource.request(priority=-10,preempt=False)
                         print(req)
                         yield req
                     else:
@@ -141,7 +148,7 @@ class Machine(object):
                                                          self.machine_type, self.id)
                 elif self.in_progress is False:
                     print("hallo3")
-                    req = self.resource.request(priority=-1, preempt=False)
+                    req = self.resource.request(priority=-10, preempt=False)
                     print(req)
                     yield req
                 #print(f"machine {self.machine_id} breaks @t={self.env.now}")

@@ -105,12 +105,16 @@ class Resource(object):
                 proc = prod.processes[id]
                 if proc.got_all_resources is False and priority < prio:
                     self.current_processes.remove([prio, prod, id, current_event])
+                    #currently_using = Event(self.env, False)
+                    #ToDo überlegen ob sinnvoll hier
+                    #self.current_processes.append([priority, product, proc_id, currently_using])
                     flag = True
             with self.resource.request(priority=priority, preempt=flag) as req:
                 yield req
                 product.monitor.monitor("BEKOMMEN", self.env.now, self.resource_type)
                 try:
                     t = True
+                    #toDO: überlegen ob sinnvoll hier
                     currently_using = Event(self.env, False)
                     self.current_processes.append([priority, product, proc_id, currently_using])
                     self.number_of_current_proc += 1
@@ -119,7 +123,7 @@ class Resource(object):
                             #ToDO Wenn der Fall Eintritt ist Krise weil die Abarbeitung dann weg ist.
                             product.monitor.monitor("KRITISCHER ERROR", self.env.now, self.resource_type)
                             yield current_event.event
-                            t = False
+                        t = False
                     if t is True:
                         c = self.env.process(self.send_location_to_product(product))
                         get_resource.trigger()  # event to signal that you get the resource
@@ -169,6 +173,8 @@ class MachineResource(object):
         self.machine_type = machine_type
         self.current_processes = []
         self.number_of_current_proc = 0
+        self.flagflag = False
+        self.wait_for_current_request = Event(self.env)
         for machine in self.machines:
             machine.resource = self.resource
 
@@ -181,15 +187,51 @@ class MachineResource(object):
         while completed is False:
             product.monitor.monitor("ASK", self.env.now, self.machine_type)
             flag = False
+            if self.flagflag is True:
+                yield self.wait_for_current_request.event
             if len(self.current_processes) == self.resource.capacity:
-                prio, prod, id, current_event = max(self.current_processes, key=lambda item: item[0])
-                print(prio, prod, id, current_event)
+                prio, prod, id, current_event, pointer, request = max(self.current_processes, key=lambda item: item[0])
+                print(f"choosen kick element{prio, prod, id, current_event, pointer, request},{self.machine_type}", product.product_infos())
                 proc = prod.processes[id]
-                if proc.got_all_resources is False and priority < prio:
-                    self.current_processes.remove([prio,prod,id,current_event])
+                if proc.got_all_resources is False and priority < prio and self.flagflag is False:
+                    #if self.flagflag is True:
+                        #yield self.wait_event.event
+                        #prio, prod, id, current_event, pointer, request = max(self.current_processes,
+                        #                                                      key=lambda item: item[0])
+                        #print(prio, prod, id, current_event)
+                        #proc = prod.processes[id]
+                        #if proc.got_all_resources is False and priority < prio:
+                    self.flagflag = True
+                    self.current_processes.remove([prio, prod, id, current_event, pointer, request])
+                    print(f"Prozess{product.product_infos()}want to kick {prod.product_infos()}")
                     flag = True
+            print(f"Bekommt davor{self.machine_type}")
+            print("user")
+            print(self.resource.users)
+            print("queue")
+            print(self.resource.queue)
             with self.resource.request(priority=priority, preempt=flag) as req:
+                if flag is True:
+                    if pointer is not None:
+                        print("pointer not None")
+                        current_event = pointer[0]
+                        proc = pointer[1]
+                        print(current_event,proc, pointer[2])
+                    pointer = [current_event, proc, prod, request]
+                    currently_using = Event(self.env, False)
+                    self.current_processes.append([priority, product, proc_id, currently_using, pointer, req])
                 yield req
+                if flag is True:
+                    print(pointer[2].product_infos(), pointer[3])
+                    self.flagflag = False
+                    self.wait_for_current_request.trigger()
+                print(f"Bekommt {self.machine_type}")
+                print("user")
+                print(self.resource.users)
+                print("queue")
+                print(self.resource.queue)
+                print(req)
+                print(flag, product.product_infos())
                 try:
                     product.monitor.monitor("BEKOMMT", self.env.now, self.machine_type)
                     t = True
@@ -197,18 +239,26 @@ class MachineResource(object):
                     #critical = Event(self.env, False)
                     #self.current_processes.append([priority, product, proc_id, currently_using, critical])
                     #self.number_of_current_proc += 1
-                    if flag is True:
+                    if flag is False:
+                        currently_using = Event(self.env, False)
+                        pointer = None
+                        self.current_processes.append([priority, product, proc_id, currently_using, pointer, req])
+                        self.number_of_current_proc += 1
+                    else:
                         #if critical_before.event.triggered is False:
                         if proc.got_all_resources is True and current_event.event.triggered is False:
+                            #self.current_processes.remove([priority, product, proc_id, currently_using, pointer, req])
+                            #self.current_processes.append([priority, product, proc_id, current_event, pointer, req])
                             product.monitor.monitor("PROZESS DER BÖSE", self.env.now, self.machine_type)
                             yield current_event.event
                             t = False
+                        elif flag is True:
+                            self.current_processes.remove([priority, product, proc_id, currently_using, pointer, req])
+                            pointer = None
+                            self.current_processes.append([priority, product,proc_id,currently_using, pointer, req])
                     #critical.trigger()
                     if t is True:
-                        currently_using = Event(self.env, False)
                         #critical = Event(self.env, False)
-                        self.current_processes.append([priority, product, proc_id, currently_using])
-                        self.number_of_current_proc += 1
                         n = True
                         get_machine = False
                         for machine in self.machines:
@@ -231,16 +281,22 @@ class MachineResource(object):
                             product.processes[proc_id].get_events.append(get_resource)
                             product.processes[proc_id].process_running.interrupt()
                         n = False
-                        if [priority, product, proc_id, currently_using] in self.current_processes:
-                            self.current_processes.remove([priority, product, proc_id, currently_using])
-                            self.number_of_current_proc -= 1
-                        yield self.env.timeout(1)
                         currently_using.trigger()
+                    if [priority, product, proc_id, currently_using, pointer, req] in self.current_processes:
+                        self.current_processes.remove([priority, product, proc_id, currently_using, pointer, req])
+                        self.number_of_current_proc -= 1
+                    #yield self.env.timeout(1)
+                    print("CHECK CHECK")
+                    print(f" releasing req {req}")
+                    print("user")
+                    print(self.resource.users)
+                    print("queue")
+                    print(self.resource.queue)
+                    print(self.machine_type,product.product_infos())
                 except simpy.Interrupt:
-                    if t is True:
-                        if [priority, product, proc_id, currently_using] in self.current_processes:
-                            self.current_processes.remove([priority, product, proc_id, currently_using])
-                            self.number_of_current_proc -= 1
+                    if [priority, product, proc_id, currently_using, pointer, req] in self.current_processes:
+                        self.current_processes.remove([priority, product, proc_id, currently_using, pointer, req])
+                        self.number_of_current_proc -= 1
                     if product.processes[proc_id].got_all_resources is False and n is True:
                         product.processes[proc_id].get_events.remove(get_resource)
                         get_resource = Event(self.env, False)
@@ -251,7 +307,7 @@ class MachineResource(object):
                         yield machine_process_succeed.event
                         for machine in self.machines:
                             if machine.current_process == proc_id:
-                                print(machine.machine_id,machine.in_progress, machine.broken)
+                                print(machine.id,machine.in_progress, machine.broken)
                         if machine_process_succeed.event.triggered is True:
                             completed = True
                             n = False
