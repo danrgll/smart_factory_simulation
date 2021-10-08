@@ -11,8 +11,7 @@ import plot
 import random
 from statistic import Stat, FileNameGenerator,MeanStat, MeanMeanStat
 
-#ToDO: mögliche Priority bei den Masdchinen Resourcen wieder rausnehmen wenn nicht benötigt.
-#ToDo: Locations der MAschinen in einer Liste speichern..und über diese mit i iterieren lassen.
+
 class SmartFactory:
     """create amount of resources(machines)"""
     def __init__(self, n_mover, n_base, n_ring, n_cap, n_repairman, des):
@@ -56,19 +55,15 @@ class SmartFactory:
         # prozess id generator
         self.proc_id_gen = self.process_id_generator()
 
-
-
     def start_simulation(self):
         """starts simulation"""
         self.env.run()
 
     def process_id_generator(self):
-        # ToDO vielleicht eher in Produkt Klasse machen und jedes Produkt verwaltet seine Prozesse nach einer ID
         i = 0
         while True:
             i += 1
             yield i
-
 
 
 class ProductionPlanner:
@@ -127,12 +122,7 @@ class ProductionPlanner:
         """
         sorts products according to production sequence
         """
-        #id_list = list()
-        #i = 1
-        #for partial_order in products:
-            #id_list.append(i)
-            #i += partial_order[1]
-        self.production_sequence = self.strategy.create_ordering(self.factory.env, self.point_counter, products)
+        self.production_sequence = self.strategy.create_ordering(products,self.factory.env, self.point_counter)
         for product in self.production_sequence:
             self.production_sequence_infos.append(product[0].product_infos())
         print(self.production_sequence_infos)
@@ -180,14 +170,12 @@ class RewardCounter:
         self.counter = 0
 
 
-def main(order, mean_stat=None, mover=6, base=4, ring=4, cap=4, repair=2, des=2):
+def main(order, mean_stat=None, mover=6, base=2, ring=4, cap=4, repair=2, des=2):
     #(3,1,2,2,1,1)
     factory = SmartFactory(mover, base, ring, cap, repair, des)
     counter = RewardCounter()
-    production_manager = ProductionPlanner(factory, strategy.FIFOManufacturingStrategy(), counter, mean_stat)
+    production_manager = ProductionPlanner(factory, strategy.ManufactureingRewardStrategy(), counter, mean_stat)
     production_manager.order(order)
-    #factory.start_simulation()
-    #return factory
 
 
 if __name__ == '__main__':

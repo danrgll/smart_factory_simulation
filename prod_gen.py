@@ -63,9 +63,9 @@ if __name__=="__main__":
     a = ["Black", "Red", "Grey"]
     b = ["Black", "Grey"]
     c = ["Blue", "Red", "Green", "Orange", "Yellow"]
-    d = generate_all_possible_dics(a, c, b, 710, 1020)
+    d = generate_all_possible_dics(a, c, b, 710, 10200)
     r = choose_runner_class(d)
-    p = generate_products(r, 18)
+    p = generate_products(r, 180)
     print(p)
     print(len(p))
 #d

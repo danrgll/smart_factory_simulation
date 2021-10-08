@@ -76,14 +76,9 @@ class Machine(object):
         except simpy.Interrupt:
             product.monitor.monitor("UNTERBROCHEN BEIM WARTEN", self.env.now, self.machine_type, self.id)
             self.marker = True
-            loc_update.interrupt()
             self.in_progress = False
+            loc_update.interrupt()
             if self.broken is True:
-                #product.processes[proc_id].get_events.remove(get_resource)
-                #get_resource = Event(self.env, False)
-                #product.processes[proc_id].get_events.append(get_resource)
-                #product.processes[proc_id].process_running.interrupt()
-                #yield self.env.timeout(1)
                 release_resource_event.trigger()
             self.marker = False
             new_try.trigger()
@@ -127,16 +122,16 @@ class Machine(object):
                         self.current_product.monitor.monitor("BREAK DER MASCHINE BEIM WARTEN", self.env.now, self.machine_type, self.id)
                         #self.input_process.interrupt()
                         req = self.resource.request(priority=-10, preempt=False)
-                        print(f"Request von Maschine selber{req}")
-                        print(f"after put in queue{self.resource.queue}")
-                        print(f"after put in users{self.resource.users}")
-                        print(req)
+                        #print(f"Request von Maschine selber{req}")
+                        #print(f"after put in queue{self.resource.queue}")
+                        #print(f"after put in users{self.resource.users}")
+                        #print(req)
                         self.input_process.interrupt()
                         yield req
-                        print("after yiled in machine broke, req, users, queue")
-                        print(req)
-                        print(self.resource.users)
-                        print(self.resource.queue)
+                        #print("after yiled in machine broke, req, users, queue")
+                        #print(req)
+                        #print(self.resource.users)
+                        #print(self.resource.queue)
                         #self.kick_process.trigger()
 
                     elif self.in_progress is False:
@@ -147,9 +142,9 @@ class Machine(object):
                         self.current_product.monitor.monitor("UNTERBROCHEN IM PROZESS", self.env.now,
                                                          self.machine_type, self.id)
                 elif self.in_progress is False:
-                    print("hallo3")
+                    #print("hallo3")
                     req = self.resource.request(priority=-10, preempt=False)
-                    print(req)
+                    #print(req)
                     yield req
                 #print(f"machine {self.machine_id} breaks @t={self.env.now}")
                 self.env.process(self.repairmen_resource.request_release_resource(self.location, self.events["wait_until_repaired"]))
@@ -160,7 +155,7 @@ class Machine(object):
                     tester.f.__next__()
                     self.events["repaired"].trigger()
                 else:
-                    print(f"break end {self.in_progress}, {self.id}")
+                    #print(f"break end {self.in_progress}, {self.id}")
                     self.resource.release(req)
                 self.events["end_break"].trigger()
 

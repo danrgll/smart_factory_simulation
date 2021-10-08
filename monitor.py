@@ -62,21 +62,23 @@ class MonitorProduct:
         self.current_machine = None
         self.monitor_event = Event(self.env)
         self.data = []
-        self.file = open("product" + str(self.product_id) + ".txt", "w")
-        self.file.write(f"Manufacturing log of product {str(self.product_id)}: \n")
-        self.file.close()
+        #self.file = open("product" + str(self.product_id) + ".txt", "w")
+        #self.file.write(f"Manufacturing log of product {str(self.product_id)}: \n")
+        #self.file.close()
 
     def monitor(self,mode, time, location, id= None):
         #self.log_all = open("log_all.txt", "a")
-        self.file = open("product" + str(self.product_id) + ".txt", "a")
+        #self.file = open("product" + str(self.product_id) + ".txt", "a")
         if id is not None:
-            self.file.write(f"{location} {id} at time {time}, mode: {mode}\n")
+            pass
+            #self.file.write(f"{location} {id} at time {time}, mode: {mode}\n")
             #self.log_all.write(f"{location} {id} at time {time}, mode: {mode}\n")
         else:
-            self.file.write(f"{location} at time {time}, mode: {mode}\n")
+            pass
+            #self.file.write(f"{location} at time {time}, mode: {mode}\n")
             #self.log_all.write(f"{location} at time {time}, mode: {mode}\n")
         self.data.append(time)
-        self.file.close()
+        #self.file.close()
 
     def log_book(self, file: str):
         log_data = self.data

@@ -2,6 +2,7 @@ import pandas as pd
 import numpy as np
 import math
 import matplotlib.pyplot as plt
+import savings
 
 
 class Stat:
@@ -26,6 +27,9 @@ class Stat:
             new_data.append(product.properties["points"])
             if new_data[3] == 'Ja':
                 new_data.append(product.properties["points"])
+            elif abs(float(product.time_limit_of_completion) - float(product.monitor.data[-1])) <=10:
+                x_80 = (product.properties["points"]*80)/100
+                new_data.append(x_80)
             else:
                 new_data.append(0)
             new_data.append(product.proc_steps)
@@ -173,7 +177,11 @@ class MeanMeanStat():
         plt.ylabel('erreichte Punkte in %')
         #plt.axis([xmin, xmax, ymin, ymax])
         plt.axis([0, 3000, 0, 100])
-        plt.scatter(self.mean_time, self.mean_points)
+        print("Mean Time")
+        print(self.mean_time)
+        print("mean_points")
+        print(self.mean_points)
+        plt.scatter(self.mean_time, self.mean_points, color=['red','green','blue','grey','black','orange','cyan','brown','purple', 'lime'])
         plt.show()
 
     def plot_all_time_points(self):
@@ -182,13 +190,85 @@ class MeanMeanStat():
         plt.ylabel('erreichte Punkte in %')
         plt.axis([0, 3000, 0, 100])
         plt.scatter(self.time_x, self.points_y)
+        print("all_times_x")
+        print(self.time_x)
+        print("all_points_y")
+        print(self.points_y)
         plt.show()
 
+def plot_combi_strategy_mean_points(x,y):
+    plt.title('')
+    plt.xlabel('erreichte Punkte in %')
+    plt.ylabel('erreichte Punkte in %, Fifo')
+    plt.axis([0, 100, 0, 100])
+    plt.scatter(x,y, color=['red','green','blue','grey','black','orange','cyan','brown','purple', 'lime'])
+    plt.plot([0,100], [0,100], '-', c='black', linewidth= .8)
+    plt.show()
 
 
+def plot_combi_strategy_mean_time(x,y):
+    plt.title('')
+    plt.xlabel('Durchschnittliche Durchlaufzeit ')
+    plt.ylabel('Durchschnittliche Durchlaufzeit, Fifo')
+    plt.axis([0, 3000, 0, 3000])
+    plt.scatter(x,y, color=['red','green','blue','grey','black','orange','cyan','brown','purple', 'lime'])
+    plt.plot([0,3000], [0,3000], '-', c='black', linewidth= .8)
+    plt.show()
 
 
+def boxplot_points_strategy(f, r, t, s):
+    plt.title('')
+    plt.xlabel('Strategien')
+    plt.ylabel('erreichte Punkte in %')
+    ax = plt.gca()
+    ax.spines['right'].set_color('none')
+    ax.spines['top'].set_color('none')
+    data = [f, r, t, s]
+    plt.axis([0, 5, 0, 100])
+    plt.boxplot(data)
+    plt.show()
 
+
+def boxplot_time_strategy(f, r, t, s):
+    plt.xlabel('')
+    plt.ylabel('Durchlaufzeit eines Auftrages')
+    ax = plt.gca()
+    ax.spines['right'].set_color('none')
+    ax.spines['top'].set_color('none')
+    data = [f, r, t, s]
+    plt.axis([0, 5, 0, 3000])
+    plt.boxplot(data)
+    plt.show()
+
+
+def boxplot_components_changes_points(init, rob, base, ring, cap, repair, des):
+    plt.xlabel('')
+    plt.ylabel('erreichte Punkte in %')
+    ax = plt.gca()
+    ax.spines['right'].set_color('none')
+    ax.spines['top'].set_color('none')
+    data = [init,rob, base, ring, cap, repair, des]
+    plt.axis([0, 8, 0, 100])
+    plt.boxplot(data)
+    plt.show()
+
+def boxplot_components_changes_time(init, rob, base, ring, cap, repair, des):
+    plt.xlabel('')
+    plt.ylabel('Durchlaufzeit eines Auftrages')
+    ax = plt.gca()
+    ax.spines['right'].set_color('none')
+    ax.spines['top'].set_color('none')
+    data = [init,rob, base, ring, cap, repair, des]
+    plt.axis([0, 8, 0, 3000])
+    plt.boxplot(data)
+    plt.show()
+
+if __name__ == '__main__':
+    #plot_combi_strategy_mean_points(savings.r_mean_points, savings.s_mean_points)
+    #plot_combi_strategy_mean_time(savings.r_mean_time, savings.s_mean_time)
+    boxplot_points_strategy(savings.f_all_points, savings.r_all_points, savings.t_all_points, savings.s_all_points)
+    boxplot_time_strategy(savings.f_all_time, savings.r_all_time, savings.t_all_time, savings.s_all_time)
+    #boxplot_components_changes_points(savings.f_all_points, savings.r_all_points, savings.t_all_points, savings.f_all_points,savings.r_all_points, savings.t_all_points, savings.f_all_points)
 
 
 
