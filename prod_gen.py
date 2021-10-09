@@ -8,16 +8,16 @@ def generate_all_possible_dics(colors_base,colors_ring, colors_cap, start, end):
     c_3 = list()
     for c1 in colors_base:
         for c2 in colors_cap:
-            dic = {"proc_steps": "cc0", "base": [c1], "cap": [c2], "points": 5, "time": random.randint(start, end)}
+            dic = {"proc_steps": "cc0", "base": [c1], "cap": [c2], "points": 15, "time": random.randint(start, end)}
             result.append(dic)
             for c3 in colors_ring:
-                dic = {"proc_steps": "cc1", "base": [c1], "ring": [c3], "cap": [c2], "points": 5, "time": random.randint(start, end)}
+                dic = {"proc_steps": "cc1", "base": [c1], "ring": [c3], "cap": [c2], "points": 25, "time": random.randint(start, end)}
                 c_1.append(dic)
             for c3 in itertools.permutations(colors_ring, 2):
-                dic = {"proc_steps": "cc2", "base": [c1], "ring": [c for c in c3], "cap": [c2], "points": 10, "time": random.randint(start, end)}
+                dic = {"proc_steps": "cc2", "base": [c1], "ring": [c for c in c3], "cap": [c2], "points": 45, "time": random.randint(start, end)}
                 c_2.append(dic)
             for c3 in itertools.permutations(colors_ring, 3):
-                dic = {"proc_steps": "cc3", "base": [c1], "ring": [c for c in c3], "cap": [c2], "points": 20, "time": random.randint(start, end)}
+                dic = {"proc_steps": "cc3", "base": [c1], "ring": [c for c in c3], "cap": [c2], "points": 75, "time": random.randint(start, end)}
                 c_3.append(dic)
     i = len(result)
     for element in random.sample(c_1,i):
@@ -58,16 +58,12 @@ def generate_products(runner_dic, number_of_products):
     random.shuffle(result)
     return result
 
-
 if __name__=="__main__":
     a = ["Black", "Red", "Grey"]
     b = ["Black", "Grey"]
     c = ["Blue", "Red", "Green", "Orange", "Yellow"]
-    d = generate_all_possible_dics(a, c, b, 710, 10200)
+    d = generate_all_possible_dics(a, c, b, 700, 10200)
     r = choose_runner_class(d)
     p = generate_products(r, 180)
     print(p)
     print(len(p))
-#d
-#Durchlaufzeit
-#Termintreue

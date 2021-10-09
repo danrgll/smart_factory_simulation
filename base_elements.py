@@ -10,10 +10,8 @@ class Event(object):
         self.reuse = reuse
         self.event = simpy.Event(self.env)
 
-
     def trigger(self, value=None):
         """trigger self.event and if we want to use this event again create a new simpy.Event"""
-        # print("event #%s triggered @t=%f" % (value, self.env.now))
         self.event.succeed(value=value)
         if self.reuse is True:
             self.event = simpy.Event(self.env)
@@ -42,7 +40,6 @@ class Process(object):
         self.process_running = None
 
     def check_input_events(self):
-        # checken ob Reihenfolge beibehalten wird
         yield AllOf(self.env, [x.event for x in self.inputs])
         self.get_resources()
         self.process_running = self.env.process(self.running())
@@ -104,32 +101,27 @@ class Resource(object):
             product.monitor.monitor("ASK", self.env.now, self.resource_type)
             flag = True
             with self.resource.request(priority=priority, preempt=flag) as req:
-                yield req
-                if flag is True:
-                    if len(self.interrupted) != 0:
-                        infos = self.interrupted.pop(0)
-                        # [[currently_using, product, proc_id, pointer]
-                        if infos[3] is not None:
-                            pointer = infos[3]
-                            #print("pointer not None")
-                        else:
-                            pointer = infos
-                        # pointer = [current_event, proc, prod, request]
-                        currently_using = Event(self.env, False)
-                        self.current_processes.append([priority, product, proc_id, currently_using, pointer, req])
-                    else:
-                        currently_using = Event(self.env, False)
-                        pointer = None
-                        self.current_processes.append([priority, product, proc_id, currently_using, pointer, req])
-                #print(f"Bekommt {self.resource_type}")
-                #print("user")
-                #print(self.resource.users)
-                #print("queue")
-                #print(self.resource.queue)
-                #print(req)
-                #print(flag, product.product_infos())
                 try:
-                    product.monitor.monitor("BEKOMMT", self.env.now, self.resource_type)
+                    i = True
+                    yield req
+                    i = False
+                    if flag is True:
+                        if len(self.interrupted) != 0:
+                            infos = self.interrupted.pop(0)
+                            # [[currently_using, product, proc_id, pointer]
+                            if infos[3] is not None:
+                                pointer = infos[3]
+                                #print("pointer not None")
+                            else:
+                                pointer = infos
+                            # pointer = [current_event, proc, prod, request]
+                            currently_using = Event(self.env, False)
+                            self.current_processes.append([priority, product, proc_id, currently_using, pointer, req])
+                        else:
+                            currently_using = Event(self.env, False)
+                            pointer = None
+                            self.current_processes.append([priority, product, proc_id, currently_using, pointer, req])
+                        product.monitor.monitor("BEKOMMT", self.env.now, self.resource_type)
                     t = True
                     if pointer is not None:
                         # [[currently_using, product, proc_id, pointer]
@@ -154,22 +146,23 @@ class Resource(object):
                         self.current_processes.remove([priority, product, proc_id, currently_using, pointer, req])
                         currently_using.trigger()
                 except simpy.Interrupt:
-                    self.interrupted.append([currently_using, product, proc_id, pointer])
-                    if [priority, product, proc_id, currently_using] in self.current_processes:
-                        self.current_processes.remove([priority, product, proc_id, currently_using, pointer, req])
-                    product.monitor.monitor("UNTERBROCHEN", self.env.now, self.resource_type)
-                    if t is True and n is True and product.processes[proc_id].got_all_resources is False:
-                        product.processes[proc_id].get_events.remove(get_resource)
-                        get_resource = Event(self.env, False)
-                        product.processes[proc_id].get_events.append(get_resource)
-                        product.processes[proc_id].process_running.interrupt()
-                        slot.interrupt()
-                    elif product.processes[proc_id].got_all_resources is True:
-                        yield event_suceed.event
-                        completed = True
-                        currently_using.trigger()
-                    else:
-                        currently_using.trigger()
+                    if i is False:
+                        self.interrupted.append([currently_using, product, proc_id, pointer])
+                        if [priority, product, proc_id, currently_using] in self.current_processes:
+                            self.current_processes.remove([priority, product, proc_id, currently_using, pointer, req])
+                        product.monitor.monitor("UNTERBROCHEN", self.env.now, self.resource_type)
+                        if t is True and n is True and product.processes[proc_id].got_all_resources is False:
+                            product.processes[proc_id].get_events.remove(get_resource)
+                            get_resource = Event(self.env, False)
+                            product.processes[proc_id].get_events.append(get_resource)
+                            product.processes[proc_id].process_running.interrupt()
+                            slot.interrupt()
+                        elif product.processes[proc_id].got_all_resources is True:
+                            yield event_suceed.event
+                            completed = True
+                            currently_using.trigger()
+                        else:
+                            currently_using.trigger()
 
     def request_slot(self, get_resource: Event, release_resource: Event, start_next_proc_step_yield: Event, start_next_proc_step_trigger: Event, proc_id, product,event_succed):
         try:
@@ -188,7 +181,7 @@ class Resource(object):
         release_resource.trigger()
 
     def processing_time(self):
-        return abs(random.normalvariate(self.processing_time_settings[0], self.processing_time_settings[1]))
+        return round(abs(random.normalvariate(self.processing_time_settings[0], self.processing_time_settings[1])))
 
     def send_location_to_product(self, product):
         try:
@@ -220,54 +213,33 @@ class MachineResource(object):
         n = False
         while completed is False:
             product.monitor.monitor("ASK", self.env.now, self.machine_type)
-            #flag = False
-            #ToDo Löschen Vergleich
-            #if len(self.current_processes) == self.resource.capacity:
-                #prio, prod, id, current_event, pointer, request = max(self.current_processes, key=lambda item: item[0])
-                #print(f"choosen kick element{prio, prod, id, current_event, pointer, request},{self.machine_type}", product.product_infos())
-                #proc = prod.processes[id]
-                #if proc.got_all_resources is False and priority < prio:
-                    #self.current_processes.remove([prio, prod, id, current_event, pointer, request])
-                    #print(f"Prozess{product.product_infos()}want to kick {prod.product_infos()}")
             flag = True
-            #print(f"Bekommt davor{self.machine_type}")
-            #print("user")
-            #print(self.resource.users)
-            #print("queue")
-            #print(self.resource.queue)
             with self.resource.request(priority=priority, preempt=flag) as req:
-                yield req
-                if flag is True:
-                    if len(self.interrupted) != 0:
-                        infos = self.interrupted.pop(0)
-                        #[[currently_using, product, proc_id, pointer]
-                        if infos[3] is not None:
-                            pointer = infos[3]
-                            print("pointer not None")
-                        else:
-                            pointer = infos
-                        # pointer = [current_event, proc, prod, request]
-                        currently_using = Event(self.env, False)
-                        self.current_processes.append([priority, product, proc_id, currently_using, pointer, req])
-                    else:
-                        currently_using = Event(self.env, False)
-                        pointer = None
-                        self.current_processes.append([priority, product, proc_id, currently_using, pointer, req])
-                #print(f"Bekommt {self.machine_type}")
-                #print("user")
-                #print(self.resource.users)
-                #print("queue")
-                #print(self.resource.queue)
-                #print(req)
-                #print(flag, product.product_infos())
                 try:
+                    i = True
+                    yield req
+                    i = False
+                    if flag is True:
+                        if len(self.interrupted) != 0:
+                            infos = self.interrupted.pop(0)
+                            #[[currently_using, product, proc_id, pointer]
+                            if infos[3] is not None:
+                                pointer = infos[3]
+                                #print("pointer not None")
+                            else:
+                                pointer = infos
+                            # pointer = [current_event, proc, prod, request]
+                            currently_using = Event(self.env, False)
+                            self.current_processes.append([priority, product, proc_id, currently_using, pointer, req])
+                        else:
+                            currently_using = Event(self.env, False)
+                            pointer = None
+                            self.current_processes.append([priority, product, proc_id, currently_using, pointer, req])
                     product.monitor.monitor("BEKOMMT", self.env.now, self.machine_type)
                     t = True
                     if pointer is not None:
                         # [[currently_using, product, proc_id, pointer]
                         if pointer[1].processes[pointer[2]].got_all_resources is True and pointer[0].event.triggered is False:
-                            #self.current_processes.remove([priority, product, proc_id, currently_using, pointer, req])
-                            #self.current_processes.append([priority, product, proc_id, current_event, pointer, req])
                             product.monitor.monitor("PROZESS DER BÖSE", self.env.now, self.machine_type)
                             yield pointer[0].event
                             t = False
@@ -279,13 +251,10 @@ class MachineResource(object):
                     if t is True:
                         n = True
                         get_machine = False
-                        #for machine in self.machines:
-                            #print(machine.id, machine.in_progress, machine.broken)
                         while get_machine is False:
                             for machine in self.machines:
                                 if machine.in_progress is False and machine.broken is False:
                                     machine.in_progress = True
-                                    #print(f"{self.machine_type}get machine, {machine.machine_type, machine.id, product.product_infos()}")
                                     c = machine
                                     machine.input_process = self.env.process(machine.input(proc_id,get_resource, release_resource, start_next_proc_step_yield, start_next_proc_step_trigger, product, machine_process_succeed, new_try))# übergebe process an maschine
                                     get_machine = True
@@ -303,34 +272,27 @@ class MachineResource(object):
                         currently_using.trigger()
                     if [priority, product, proc_id, currently_using, pointer, req] in self.current_processes:
                         self.current_processes.remove([priority, product, proc_id, currently_using, pointer, req])
-                    #print("CHECK CHECK")
-                    #print(f" releasing req {req}")
-                    #print("user")
-                    #print(self.resource.users)
-                    #print("queue")
-                    #print(self.resource.queue)
-                    #print(self.machine_type,product.product_infos())
                 except simpy.Interrupt:
-                    self.interrupted.append([currently_using, product, proc_id, pointer])
-                    if [priority, product, proc_id, currently_using, pointer, req] in self.current_processes:
-                        self.current_processes.remove([priority, product, proc_id, currently_using, pointer, req])
-                    if product.processes[proc_id].got_all_resources is False and n is True:
-                        product.processes[proc_id].get_events.remove(get_resource)
-                        get_resource = Event(self.env, False)
-                        product.processes[proc_id].get_events.append(get_resource)
-                        product.processes[proc_id].process_running.interrupt()
-                        c.input_process.interrupt()
-                        yield new_try.event
-                        currently_using.trigger()
-                    elif product.processes[proc_id].got_all_resources is True:
-                        #Todo falls davor getriggerd
-                        yield machine_process_succeed.event
-                        for machine in self.machines:
-                            if machine.current_process == proc_id:
-                                print(machine.id,machine.in_progress, machine.broken)
-                        completed = True
-                        n = False
-                        currently_using.trigger()
+                    if i is False:
+                        self.interrupted.append([currently_using, product, proc_id, pointer])
+                        if [priority, product, proc_id, currently_using, pointer, req] in self.current_processes:
+                            self.current_processes.remove([priority, product, proc_id, currently_using, pointer, req])
+                        if product.processes[proc_id].got_all_resources is False and n is True:
+                            product.processes[proc_id].get_events.remove(get_resource)
+                            get_resource = Event(self.env, False)
+                            product.processes[proc_id].get_events.append(get_resource)
+                            product.processes[proc_id].process_running.interrupt()
+                            c.input_process.interrupt()
+                            yield new_try.event
+                            currently_using.trigger()
+                        elif product.processes[proc_id].got_all_resources is True:
+                            yield machine_process_succeed.event
+                            #for machine in self.machines:
+                                #if machine.current_process == proc_id:
+                                    #print(machine.id,machine.in_progress, machine.broken)
+                            completed = True
+                            n = False
+                            currently_using.trigger()
                     #if n is False and t is True:
                         #if proc got kicked before get a machine
                         #currently_using.trigger()
@@ -356,31 +318,25 @@ class MoverResource(object):
             product.monitor.monitor("ASK", self.env.now, "mover")
             flag = True
             with self.resource.request(priority=priority, preempt=flag) as req:
-                yield req
-                if flag is True:
-                    if len(self.interrupted) != 0:
-                        infos = self.interrupted.pop(0)
-                        # [[currently_using, product, proc_id, pointer]
-                        if infos[3] is not None:
-                            pointer = infos[3]
-                            #print("pointer not None")
-                        else:
-                            pointer = infos
-                        # pointer = [current_event, proc, prod, request]
-                        currently_using = Event(self.env, False)
-                        self.current_processes.append([priority, product, proc_id, currently_using, pointer, req])
-                    else:
-                        currently_using = Event(self.env, False)
-                        pointer = None
-                        self.current_processes.append([priority, product, proc_id, currently_using, pointer, req])
-                #print(f"Bekommt {self.resource_type}")
-                #print("user")
-                #print(self.resource.users)
-                #print("queue")
-                #print(self.resource.queue)
-                #print(req)
-                #print(flag, product.product_infos())
                 try:
+                    i = True
+                    yield req
+                    i = False
+                    if flag is True:
+                        if len(self.interrupted) != 0:
+                            infos = self.interrupted.pop(0)
+                            # [[currently_using, product, proc_id, pointer]
+                            if infos[3] is not None:
+                                pointer = infos[3]
+                            else:
+                                pointer = infos
+                            # pointer = [current_event, proc, prod, request]
+                            currently_using = Event(self.env, False)
+                            self.current_processes.append([priority, product, proc_id, currently_using, pointer, req])
+                        else:
+                            currently_using = Event(self.env, False)
+                            pointer = None
+                            self.current_processes.append([priority, product, proc_id, currently_using, pointer, req])
                     product.monitor.monitor("BEKOMMT", self.env.now, self.resource_type)
                     t = True
                     if pointer is not None:
@@ -401,7 +357,6 @@ class MoverResource(object):
                         n = True
                         get_machine = False
                         while get_machine is False:
-                            #print("Endlosschleife")
                             for mover in self.movers:
                                 if mover.reserved is False:
                                     mover.reserved = True
@@ -418,25 +373,23 @@ class MoverResource(object):
                     if [priority, product, proc_id, currently_using] in self.current_processes:
                         self.current_processes.remove([priority, product, proc_id, currently_using, pointer, req])
                 except simpy.Interrupt:
-                    self.interrupted.append([currently_using, product, proc_id, pointer])
-                    if [priority, product, proc_id, currently_using] in self.current_processes:
-                        self.current_processes.remove([priority, product, proc_id, currently_using, pointer, req])
-                    if product.processes[proc_id].got_all_resources is False and n is True:
-                        product.processes[proc_id].get_events.remove(get_resource)
-                        get_resource = Event(self.env, False)
-                        product.processes[proc_id].get_events.append(get_resource)
-                        product.processes[proc_id].process_running.interrupt()
-                        c.interrupt()
-                        yield new_try.event
-                        currently_using.trigger()
-                    elif product.processes[proc_id].got_all_resources is True:
-                        yield machine_process_succeed.event
-                        work_done = True
-                        n = False
-                        currently_using.trigger()
-                    #if n is False and t is True:
-                        # if proc got kicked before get a machine
-                        #currently_using.trigger()
+                    if i is False:
+                        self.interrupted.append([currently_using, product, proc_id, pointer])
+                        if [priority, product, proc_id, currently_using] in self.current_processes:
+                            self.current_processes.remove([priority, product, proc_id, currently_using, pointer, req])
+                        if product.processes[proc_id].got_all_resources is False and n is True:
+                            product.processes[proc_id].get_events.remove(get_resource)
+                            get_resource = Event(self.env, False)
+                            product.processes[proc_id].get_events.append(get_resource)
+                            product.processes[proc_id].process_running.interrupt()
+                            c.interrupt()
+                            yield new_try.event
+                            currently_using.trigger()
+                        elif product.processes[proc_id].got_all_resources is True:
+                            yield machine_process_succeed.event
+                            work_done = True
+                            n = False
+                            currently_using.trigger()
                 #if n is True:
                     #yield new_try.event
                     #currently_using.trigger()

@@ -37,9 +37,9 @@ class Mover(object):
             if product.events["new_location"].event.triggered is not True:
                 yield product.events["new_location"].event
             self.pick_up_location = product.current_location
-            self.time_to_pick_up_location = np.linalg.norm(self.location-self.pick_up_location)  # calculates Euclidean distance
+            self.time_to_pick_up_location = round(np.linalg.norm(self.location-self.pick_up_location))  # calculates Euclidean distance
             self.destination = product.next_destination_location
-            self.time_to_destination = np.linalg.norm(self.pick_up_location-self.destination)  # calculates Euclidean distance
+            self.time_to_destination = round(np.linalg.norm(self.pick_up_location-self.destination))  # calculates Euclidean distance
             product.events["new_location"] = Event(self.env, False)
             self.events["reactivate"].trigger()
 
@@ -68,6 +68,6 @@ class Mover(object):
             self.current_product.monitor.monitor("FERTIG", self.env.now, "mover")
 
     def time_to_pick_up(self):
-        return abs(random.normalvariate(self.time_to_pick_up_m_s[0], self.time_to_pick_up_m_s[1]))
+        return round(abs(random.normalvariate(self.time_to_pick_up_m_s[0], self.time_to_pick_up_m_s[1])))
 
 

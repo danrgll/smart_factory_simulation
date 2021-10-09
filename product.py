@@ -29,12 +29,12 @@ class Product(ABC):
             counter.counter += self.properties["points"]
         elif self.env.now <= self.time_limit_of_completion+10:
             counter.counter += ((self.properties["points"]*80)/100)
+        elif self.env.now <= self.time_limit_of_completion+20:
+            counter.counter += ((self.properties["points"] * 10) / 100)
 
     def product_infos(self):
         infos = (self.id, self.proc_steps, self.time_limit_of_completion, self.properties)
         return infos
-
-
 
 
 class ProductCC0(Product):

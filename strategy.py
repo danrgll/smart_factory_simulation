@@ -6,15 +6,6 @@ import itertools
 import time as t
 
 
-"""
-def product_id_generator():
-    # ToDO vielleicht eher in Produkt Klasse machen und jedes Produkt verwaltet seine Prozesse nach einer ID
-    i = 0
-    while True:
-        i += 1
-        yield i
-"""
-
 class OrderingStrategy(ABC):
     def __init__(self):
         self.production_sequence = list()
@@ -37,7 +28,7 @@ class FIFOManufacturingStrategy(OrderingStrategy):
                     id_generator += 1
         prios = list(range(1,len(self.production_sequence)+1))
         zip_list = list(zip(self.production_sequence, prios))
-        print(zip_list)
+        #print(zip_list)
         return zip_list
 
 
@@ -45,7 +36,7 @@ class ManufactureingAfterTimeLimitStrategy(OrderingStrategy):
     def create_ordering(self, order,env=None,point_counter=None, just_products=False):
         order.sort(key=self.taketime)
         id_generator = 1
-        print(order)
+        #print(order)
         for specification in order:
             if specification["proc_steps"] == "cc0":
                     #Product(env: simpy.Environment, id: int, proc_steps, time_limit_completion, counter, properties: )
@@ -70,7 +61,9 @@ class ManufactureingRewardStrategy(OrderingStrategy):
     def create_ordering(self, order,env = None,point_counter=None, just_products= False):
         order.sort(key=self.takepoints, reverse=True)
         id_generator = 1
-        print(order)
+        #print(order)
+        if just_products is True:
+            return order
         for specification in order:
             if specification["proc_steps"] == "cc0":
                     #Product(env: simpy.Environment, id: int, proc_steps, time_limit_completion, counter, properties: )
@@ -108,20 +101,15 @@ class RandomOrderStrategy(OrderingStrategy):
         return zip_list
 
 class ManufacturingAccordingToSimilarity(OrderingStrategy):
-    # ToDO: Sortieren nach ähnlichketen, pro Ähnlichkeit, Base Farbe, Ring Farbe, cap etc gibt es einen Punkt
     def create_ordering(self, order: list, env=None, point_counter=None, just_products=False):
-        #print(len(order))
         sim_list = []
         for element in order:
             if element not in sim_list:
                 sim_list.append(element)
-        #print(len(sim_list))
         zip_counter = []
         for element in sim_list:
             #[[1,Produkt]]
             zip_counter.append([0,element])
-        #print("halloooo")
-        #print(len(zip_counter))
         for k in order:
             for z in zip_counter:
                 if z[1] == k:
@@ -149,24 +137,14 @@ class ManufacturingAccordingToSimilarity(OrderingStrategy):
                                 safe_kicked_from_dict[str(element1[1])].append(element2)
                             else:
                                 safe_kicked_from_dict[str(element1[1])] = [element2]
-        #print(safe_kicked_from_dict)
         for key in safe_kicked_from_dict:
-            #print(key)
             for element in zip_counter:
                 if str(element[1]) == key:
                     for config in safe_kicked_from_dict[key]:
-                        #rint("ha")
-                        #print(config)
                         zip_counter.remove(config)
                         sim_list.remove(config[1])
-        #print(sim_list)
-        #print(len(zip_counter))
-        #print(len(sim_list))
         zip_list = list(range(1, len(sim_list)+1))
         zipp = list(zip(zip_list,sim_list))
-        #print(len(zipp))
-        #print(zipp)
-        #print(len(zipp))
         sim_lst = dict()
         for elem1 in zipp:
             for elem2 in zipp:
@@ -178,7 +156,6 @@ class ManufacturingAccordingToSimilarity(OrderingStrategy):
                         #null if only spender
                         i += 0
                     if "ring" in a and "ring" in b:
-                        #c = min(len(a["ring"]), len(b["ring"]))
                         ring_colors_a = set(a["ring"])
                         ring_colors_b = set(b["ring"])
                         intersect = ring_colors_a.intersection(ring_colors_b)
@@ -227,9 +204,6 @@ class ManufacturingAccordingToSimilarity(OrderingStrategy):
         new_ordering.sort(key=self.get_key)
         a = list(zip(*new_ordering))
         listt = list(a[0])
-        #print(listt)
-        #print(len(listt))
-        #print(safe_kicked_from_dict)
         end_ordering = []
         for element in listt:
             for e in zip_counter:
@@ -238,12 +212,9 @@ class ManufacturingAccordingToSimilarity(OrderingStrategy):
                         end_ordering.append(element)
                     for key in safe_kicked_from_dict:
                         if str(e[1]) == key:
-                            #print(key)
                             for config in safe_kicked_from_dict[key]:
                                 for i in range(0,config[0]):
                                     end_ordering.append(config[1])
-
-        #print(len(end_ordering))
         if just_products is True:
             return end_ordering
         else:
@@ -278,313 +249,36 @@ class strategy_solution_generator:
             self.counter = 0
         return order
 
+
 if __name__ == '__main__':
     sim = ManufacturingAccordingToSimilarity()
-    AUSWERTUNG_180 = [{'proc_steps': 'cc3', 'base': ['Red'], 'ring': ['Orange', 'Green', 'Blue'], 'cap': ['Grey'],
-                        'points': 20, 'time': 7301},
-                       {'proc_steps': 'cc0', 'base': ['Grey'], 'cap': ['Grey'], 'points': 5, 'time': 9312},
-                       {'proc_steps': 'cc3', 'base': ['Grey'], 'ring': ['Orange', 'Red', 'Green'], 'cap': ['Black'],
-                        'points': 20, 'time': 2816},
-                       {'proc_steps': 'cc2', 'base': ['Red'], 'ring': ['Green', 'Orange'], 'cap': ['Black'],
-                        'points': 10, 'time': 2424},
-                       {'proc_steps': 'cc3', 'base': ['Red'], 'ring': ['Orange', 'Green', 'Blue'], 'cap': ['Grey'],
-                        'points': 20, 'time': 7301},
-                       {'proc_steps': 'cc3', 'base': ['Red'], 'ring': ['Orange', 'Green', 'Blue'], 'cap': ['Grey'],
-                        'points': 20, 'time': 7301},
-                       {'proc_steps': 'cc0', 'base': ['Black'], 'cap': ['Grey'], 'points': 5, 'time': 9188},
-                       {'proc_steps': 'cc0', 'base': ['Black'], 'cap': ['Black'], 'points': 5, 'time': 1013},
-                       {'proc_steps': 'cc3', 'base': ['Grey'], 'ring': ['Orange', 'Red', 'Green'], 'cap': ['Black'],
-                        'points': 20, 'time': 2816},
-                       {'proc_steps': 'cc1', 'base': ['Red'], 'ring': ['Blue'], 'cap': ['Grey'], 'points': 5,
-                        'time': 1321},
-                       {'proc_steps': 'cc2', 'base': ['Grey'], 'ring': ['Yellow', 'Green'], 'cap': ['Grey'],
-                        'points': 10, 'time': 4277},
-                       {'proc_steps': 'cc3', 'base': ['Red'], 'ring': ['Orange', 'Green', 'Blue'], 'cap': ['Grey'],
-                        'points': 20, 'time': 7301},
-                       {'proc_steps': 'cc0', 'base': ['Black'], 'cap': ['Black'], 'points': 5, 'time': 1013},
-                       {'proc_steps': 'cc3', 'base': ['Red'], 'ring': ['Orange', 'Green', 'Blue'], 'cap': ['Grey'],
-                        'points': 20, 'time': 7301},
-                       {'proc_steps': 'cc1', 'base': ['Red'], 'ring': ['Blue'], 'cap': ['Grey'], 'points': 5,
-                        'time': 1321},
-                       {'proc_steps': 'cc0', 'base': ['Grey'], 'cap': ['Grey'], 'points': 5, 'time': 9312},
-                       {'proc_steps': 'cc0', 'base': ['Black'], 'cap': ['Black'], 'points': 5, 'time': 1013},
-                       {'proc_steps': 'cc3', 'base': ['Grey'], 'ring': ['Orange', 'Red', 'Green'], 'cap': ['Black'],
-                        'points': 20, 'time': 2816},
-                       {'proc_steps': 'cc3', 'base': ['Red'], 'ring': ['Orange', 'Green', 'Blue'], 'cap': ['Grey'],
-                        'points': 20, 'time': 7301},
-                       {'proc_steps': 'cc0', 'base': ['Black'], 'cap': ['Black'], 'points': 5, 'time': 1013},
-                       {'proc_steps': 'cc0', 'base': ['Black'], 'cap': ['Black'], 'points': 5, 'time': 1013},
-                       {'proc_steps': 'cc1', 'base': ['Red'], 'ring': ['Blue'], 'cap': ['Grey'], 'points': 5,
-                        'time': 1321},
-                       {'proc_steps': 'cc0', 'base': ['Grey'], 'cap': ['Black'], 'points': 5, 'time': 3822},
-                       {'proc_steps': 'cc3', 'base': ['Grey'], 'ring': ['Orange', 'Red', 'Green'], 'cap': ['Black'],
-                        'points': 20, 'time': 2816},
-                       {'proc_steps': 'cc1', 'base': ['Black'], 'ring': ['Orange'], 'cap': ['Grey'], 'points': 5,
-                        'time': 9105},
-                       {'proc_steps': 'cc3', 'base': ['Red'], 'ring': ['Green', 'Yellow', 'Blue'], 'cap': ['Grey'],
-                        'points': 20, 'time': 3489},
-                       {'proc_steps': 'cc1', 'base': ['Red'], 'ring': ['Blue'], 'cap': ['Grey'], 'points': 5,
-                        'time': 1321},
-                       {'proc_steps': 'cc3', 'base': ['Grey'], 'ring': ['Blue', 'Orange', 'Green'], 'cap': ['Grey'],
-                        'points': 20, 'time': 3355},
-                       {'proc_steps': 'cc0', 'base': ['Black'], 'cap': ['Black'], 'points': 5, 'time': 1013},
-                       {'proc_steps': 'cc1', 'base': ['Red'], 'ring': ['Blue'], 'cap': ['Grey'], 'points': 5,
-                        'time': 1321},
-                       {'proc_steps': 'cc3', 'base': ['Grey'], 'ring': ['Orange', 'Red', 'Green'], 'cap': ['Black'],
-                        'points': 20, 'time': 2816},
-                       {'proc_steps': 'cc1', 'base': ['Red'], 'ring': ['Yellow'], 'cap': ['Black'], 'points': 5,
-                        'time': 2666},
-                       {'proc_steps': 'cc0', 'base': ['Black'], 'cap': ['Black'], 'points': 5, 'time': 1013},
-                       {'proc_steps': 'cc1', 'base': ['Red'], 'ring': ['Blue'], 'cap': ['Grey'], 'points': 5,
-                        'time': 1321},
-                       {'proc_steps': 'cc3', 'base': ['Red'], 'ring': ['Orange', 'Green', 'Blue'], 'cap': ['Grey'],
-                        'points': 20, 'time': 7301},
-                       {'proc_steps': 'cc3', 'base': ['Grey'], 'ring': ['Orange', 'Red', 'Green'], 'cap': ['Black'],
-                        'points': 20, 'time': 2816},
-                       {'proc_steps': 'cc0', 'base': ['Black'], 'cap': ['Black'], 'points': 5, 'time': 1013},
-                       {'proc_steps': 'cc1', 'base': ['Black'], 'ring': ['Orange'], 'cap': ['Grey'], 'points': 5,
-                        'time': 9105},
-                       {'proc_steps': 'cc0', 'base': ['Black'], 'cap': ['Grey'], 'points': 5, 'time': 9188},
-                       {'proc_steps': 'cc3', 'base': ['Red'], 'ring': ['Green', 'Yellow', 'Blue'], 'cap': ['Grey'],
-                        'points': 20, 'time': 3489},
-                       {'proc_steps': 'cc1', 'base': ['Red'], 'ring': ['Blue'], 'cap': ['Grey'], 'points': 5,
-                        'time': 1321},
-                       {'proc_steps': 'cc1', 'base': ['Red'], 'ring': ['Blue'], 'cap': ['Grey'], 'points': 5,
-                        'time': 1321},
-                       {'proc_steps': 'cc0', 'base': ['Grey'], 'cap': ['Grey'], 'points': 5, 'time': 9312},
-                       {'proc_steps': 'cc2', 'base': ['Grey'], 'ring': ['Orange', 'Yellow'], 'cap': ['Grey'],
-                        'points': 10, 'time': 8639},
-                       {'proc_steps': 'cc3', 'base': ['Grey'], 'ring': ['Blue', 'Orange', 'Green'], 'cap': ['Grey'],
-                        'points': 20, 'time': 3355},
-                       {'proc_steps': 'cc3', 'base': ['Grey'], 'ring': ['Yellow', 'Blue', 'Red'], 'cap': ['Grey'],
-                        'points': 20, 'time': 2554},
-                       {'proc_steps': 'cc0', 'base': ['Black'], 'cap': ['Grey'], 'points': 5, 'time': 9188},
-                       {'proc_steps': 'cc0', 'base': ['Black'], 'cap': ['Black'], 'points': 5, 'time': 1013},
-                       {'proc_steps': 'cc1', 'base': ['Red'], 'ring': ['Blue'], 'cap': ['Grey'], 'points': 5,
-                        'time': 1321},
-                       {'proc_steps': 'cc0', 'base': ['Red'], 'cap': ['Grey'], 'points': 5, 'time': 9582},
-                       {'proc_steps': 'cc3', 'base': ['Red'], 'ring': ['Green', 'Yellow', 'Blue'], 'cap': ['Grey'],
-                        'points': 20, 'time': 3489},
-                       {'proc_steps': 'cc0', 'base': ['Black'], 'cap': ['Black'], 'points': 5, 'time': 1013},
-                       {'proc_steps': 'cc3', 'base': ['Grey'], 'ring': ['Orange', 'Red', 'Green'], 'cap': ['Black'],
-                        'points': 20, 'time': 2816},
-                       {'proc_steps': 'cc0', 'base': ['Black'], 'cap': ['Black'], 'points': 5, 'time': 1013},
-                       {'proc_steps': 'cc3', 'base': ['Grey'], 'ring': ['Blue', 'Orange', 'Green'], 'cap': ['Grey'],
-                        'points': 20, 'time': 3355},
-                       {'proc_steps': 'cc1', 'base': ['Grey'], 'ring': ['Green'], 'cap': ['Black'], 'points': 5,
-                        'time': 3251},
-                       {'proc_steps': 'cc0', 'base': ['Black'], 'cap': ['Black'], 'points': 5, 'time': 1013},
-                       {'proc_steps': 'cc3', 'base': ['Grey'], 'ring': ['Orange', 'Red', 'Green'], 'cap': ['Black'],
-                        'points': 20, 'time': 2816},
-                       {'proc_steps': 'cc3', 'base': ['Red'], 'ring': ['Orange', 'Green', 'Blue'], 'cap': ['Grey'],
-                        'points': 20, 'time': 7301},
-                       {'proc_steps': 'cc1', 'base': ['Red'], 'ring': ['Blue'], 'cap': ['Grey'], 'points': 5,
-                        'time': 1321},
-                       {'proc_steps': 'cc3', 'base': ['Red'], 'ring': ['Orange', 'Green', 'Blue'], 'cap': ['Grey'],
-                        'points': 20, 'time': 7301},
-                       {'proc_steps': 'cc2', 'base': ['Black'], 'ring': ['Blue', 'Red'], 'cap': ['Grey'], 'points': 10,
-                        'time': 8801},
-                       {'proc_steps': 'cc0', 'base': ['Grey'], 'cap': ['Black'], 'points': 5, 'time': 3822},
-                       {'proc_steps': 'cc3', 'base': ['Grey'], 'ring': ['Orange', 'Red', 'Green'], 'cap': ['Black'],
-                        'points': 20, 'time': 2816},
-                       {'proc_steps': 'cc0', 'base': ['Black'], 'cap': ['Black'], 'points': 5, 'time': 1013},
-                       {'proc_steps': 'cc0', 'base': ['Black'], 'cap': ['Black'], 'points': 5, 'time': 1013},
-                       {'proc_steps': 'cc3', 'base': ['Grey'], 'ring': ['Yellow', 'Blue', 'Red'], 'cap': ['Grey'],
-                        'points': 20, 'time': 2554},
-                       {'proc_steps': 'cc1', 'base': ['Red'], 'ring': ['Blue'], 'cap': ['Grey'], 'points': 5,
-                        'time': 1321},
-                       {'proc_steps': 'cc0', 'base': ['Black'], 'cap': ['Grey'], 'points': 5, 'time': 9188},
-                       {'proc_steps': 'cc3', 'base': ['Red'], 'ring': ['Green', 'Yellow', 'Blue'], 'cap': ['Grey'],
-                        'points': 20, 'time': 3489},
-                       {'proc_steps': 'cc1', 'base': ['Red'], 'ring': ['Blue'], 'cap': ['Grey'], 'points': 5,
-                        'time': 1321},
-                       {'proc_steps': 'cc3', 'base': ['Red'], 'ring': ['Orange', 'Green', 'Blue'], 'cap': ['Grey'],
-                        'points': 20, 'time': 7301},
-                       {'proc_steps': 'cc0', 'base': ['Black'], 'cap': ['Black'], 'points': 5, 'time': 1013},
-                       {'proc_steps': 'cc0', 'base': ['Black'], 'cap': ['Black'], 'points': 5, 'time': 1013},
-                       {'proc_steps': 'cc1', 'base': ['Black'], 'ring': ['Orange'], 'cap': ['Grey'], 'points': 5,
-                        'time': 9105},
-                       {'proc_steps': 'cc3', 'base': ['Grey'], 'ring': ['Orange', 'Red', 'Green'], 'cap': ['Black'],
-                        'points': 20, 'time': 2816},
-                       {'proc_steps': 'cc0', 'base': ['Black'], 'cap': ['Black'], 'points': 5, 'time': 1013},
-                       {'proc_steps': 'cc0', 'base': ['Black'], 'cap': ['Black'], 'points': 5, 'time': 1013},
-                       {'proc_steps': 'cc1', 'base': ['Red'], 'ring': ['Blue'], 'cap': ['Grey'], 'points': 5,
-                        'time': 1321},
-                       {'proc_steps': 'cc2', 'base': ['Red'], 'ring': ['Red', 'Orange'], 'cap': ['Grey'], 'points': 10,
-                        'time': 6549},
-                       {'proc_steps': 'cc1', 'base': ['Red'], 'ring': ['Blue'], 'cap': ['Grey'], 'points': 5,
-                        'time': 1321},
-                       {'proc_steps': 'cc0', 'base': ['Black'], 'cap': ['Grey'], 'points': 5, 'time': 9188},
-                       {'proc_steps': 'cc3', 'base': ['Grey'], 'ring': ['Blue', 'Orange', 'Green'], 'cap': ['Grey'],
-                        'points': 20, 'time': 3355},
-                       {'proc_steps': 'cc3', 'base': ['Grey'], 'ring': ['Orange', 'Red', 'Green'], 'cap': ['Black'],
-                        'points': 20, 'time': 2816},
-                       {'proc_steps': 'cc3', 'base': ['Red'], 'ring': ['Orange', 'Green', 'Blue'], 'cap': ['Grey'],
-                        'points': 20, 'time': 7301},
-                       {'proc_steps': 'cc3', 'base': ['Red'], 'ring': ['Orange', 'Green', 'Blue'], 'cap': ['Grey'],
-                        'points': 20, 'time': 7301},
-                       {'proc_steps': 'cc0', 'base': ['Black'], 'cap': ['Black'], 'points': 5, 'time': 1013},
-                       {'proc_steps': 'cc1', 'base': ['Red'], 'ring': ['Blue'], 'cap': ['Grey'], 'points': 5,
-                        'time': 1321},
-                       {'proc_steps': 'cc3', 'base': ['Red'], 'ring': ['Orange', 'Green', 'Blue'], 'cap': ['Grey'],
-                        'points': 20, 'time': 7301},
-                       {'proc_steps': 'cc1', 'base': ['Red'], 'ring': ['Blue'], 'cap': ['Grey'], 'points': 5,
-                        'time': 1321},
-                       {'proc_steps': 'cc1', 'base': ['Red'], 'ring': ['Blue'], 'cap': ['Grey'], 'points': 5,
-                        'time': 1321},
-                       {'proc_steps': 'cc3', 'base': ['Grey'], 'ring': ['Orange', 'Red', 'Green'], 'cap': ['Black'],
-                        'points': 20, 'time': 2816},
-                       {'proc_steps': 'cc3', 'base': ['Red'], 'ring': ['Orange', 'Green', 'Blue'], 'cap': ['Grey'],
-                        'points': 20, 'time': 7301},
-                       {'proc_steps': 'cc1', 'base': ['Red'], 'ring': ['Blue'], 'cap': ['Grey'], 'points': 5,
-                        'time': 1321},
-                       {'proc_steps': 'cc3', 'base': ['Red'], 'ring': ['Orange', 'Green', 'Blue'], 'cap': ['Grey'],
-                        'points': 20, 'time': 7301},
-                       {'proc_steps': 'cc0', 'base': ['Grey'], 'cap': ['Black'], 'points': 5, 'time': 3822},
-                       {'proc_steps': 'cc1', 'base': ['Red'], 'ring': ['Blue'], 'cap': ['Grey'], 'points': 5,
-                        'time': 1321},
-                       {'proc_steps': 'cc1', 'base': ['Red'], 'ring': ['Blue'], 'cap': ['Grey'], 'points': 5,
-                        'time': 1321},
-                       {'proc_steps': 'cc0', 'base': ['Black'], 'cap': ['Black'], 'points': 5, 'time': 1013},
-                       {'proc_steps': 'cc1', 'base': ['Black'], 'ring': ['Orange'], 'cap': ['Grey'], 'points': 5,
-                        'time': 9105},
-                       {'proc_steps': 'cc0', 'base': ['Black'], 'cap': ['Black'], 'points': 5, 'time': 1013},
-                       {'proc_steps': 'cc3', 'base': ['Red'], 'ring': ['Orange', 'Green', 'Blue'], 'cap': ['Grey'],
-                        'points': 20, 'time': 7301},
-                       {'proc_steps': 'cc3', 'base': ['Red'], 'ring': ['Orange', 'Green', 'Blue'], 'cap': ['Grey'],
-                        'points': 20, 'time': 7301},
-                       {'proc_steps': 'cc3', 'base': ['Grey'], 'ring': ['Orange', 'Red', 'Green'], 'cap': ['Black'],
-                        'points': 20, 'time': 2816},
-                       {'proc_steps': 'cc1', 'base': ['Red'], 'ring': ['Blue'], 'cap': ['Grey'], 'points': 5,
-                        'time': 1321},
-                       {'proc_steps': 'cc0', 'base': ['Black'], 'cap': ['Black'], 'points': 5, 'time': 1013},
-                       {'proc_steps': 'cc3', 'base': ['Red'], 'ring': ['Orange', 'Green', 'Blue'], 'cap': ['Grey'],
-                        'points': 20, 'time': 7301},
-                       {'proc_steps': 'cc3', 'base': ['Grey'], 'ring': ['Yellow', 'Blue', 'Red'], 'cap': ['Grey'],
-                        'points': 20, 'time': 2554},
-                       {'proc_steps': 'cc3', 'base': ['Grey'], 'ring': ['Orange', 'Red', 'Green'], 'cap': ['Black'],
-                        'points': 20, 'time': 2816},
-                       {'proc_steps': 'cc0', 'base': ['Black'], 'cap': ['Black'], 'points': 5, 'time': 1013},
-                       {'proc_steps': 'cc3', 'base': ['Grey'], 'ring': ['Orange', 'Red', 'Green'], 'cap': ['Black'],
-                        'points': 20, 'time': 2816},
-                       {'proc_steps': 'cc3', 'base': ['Red'], 'ring': ['Orange', 'Green', 'Blue'], 'cap': ['Grey'],
-                        'points': 20, 'time': 7301},
-                       {'proc_steps': 'cc0', 'base': ['Black'], 'cap': ['Black'], 'points': 5, 'time': 1013},
-                       {'proc_steps': 'cc3', 'base': ['Grey'], 'ring': ['Orange', 'Red', 'Green'], 'cap': ['Black'],
-                        'points': 20, 'time': 2816},
-                       {'proc_steps': 'cc0', 'base': ['Black'], 'cap': ['Black'], 'points': 5, 'time': 1013},
-                       {'proc_steps': 'cc0', 'base': ['Black'], 'cap': ['Black'], 'points': 5, 'time': 1013},
-                       {'proc_steps': 'cc3', 'base': ['Red'], 'ring': ['Orange', 'Green', 'Blue'], 'cap': ['Grey'],
-                        'points': 20, 'time': 7301},
-                       {'proc_steps': 'cc3', 'base': ['Grey'], 'ring': ['Orange', 'Red', 'Green'], 'cap': ['Black'],
-                        'points': 20, 'time': 2816},
-                       {'proc_steps': 'cc3', 'base': ['Red'], 'ring': ['Orange', 'Green', 'Blue'], 'cap': ['Grey'],
-                        'points': 20, 'time': 7301},
-                       {'proc_steps': 'cc0', 'base': ['Black'], 'cap': ['Black'], 'points': 5, 'time': 1013},
-                       {'proc_steps': 'cc0', 'base': ['Black'], 'cap': ['Black'], 'points': 5, 'time': 1013},
-                       {'proc_steps': 'cc3', 'base': ['Red'], 'ring': ['Orange', 'Green', 'Blue'], 'cap': ['Grey'],
-                        'points': 20, 'time': 7301},
-                       {'proc_steps': 'cc3', 'base': ['Red'], 'ring': ['Orange', 'Green', 'Blue'], 'cap': ['Grey'],
-                        'points': 20, 'time': 7301},
-                       {'proc_steps': 'cc3', 'base': ['Red'], 'ring': ['Green', 'Yellow', 'Blue'], 'cap': ['Grey'],
-                        'points': 20, 'time': 3489},
-                       {'proc_steps': 'cc0', 'base': ['Black'], 'cap': ['Grey'], 'points': 5, 'time': 9188},
-                       {'proc_steps': 'cc3', 'base': ['Grey'], 'ring': ['Yellow', 'Blue', 'Red'], 'cap': ['Grey'],
-                        'points': 20, 'time': 2554},
-                       {'proc_steps': 'cc0', 'base': ['Black'], 'cap': ['Black'], 'points': 5, 'time': 1013},
-                       {'proc_steps': 'cc1', 'base': ['Red'], 'ring': ['Blue'], 'cap': ['Grey'], 'points': 5,
-                        'time': 1321},
-                       {'proc_steps': 'cc1', 'base': ['Black'], 'ring': ['Green'], 'cap': ['Grey'], 'points': 5,
-                        'time': 9277},
-                       {'proc_steps': 'cc3', 'base': ['Grey'], 'ring': ['Blue', 'Orange', 'Green'], 'cap': ['Grey'],
-                        'points': 20, 'time': 3355},
-                       {'proc_steps': 'cc3', 'base': ['Grey'], 'ring': ['Orange', 'Red', 'Green'], 'cap': ['Black'],
-                        'points': 20, 'time': 2816},
-                       {'proc_steps': 'cc0', 'base': ['Black'], 'cap': ['Black'], 'points': 5, 'time': 1013},
-                       {'proc_steps': 'cc2', 'base': ['Red'], 'ring': ['Blue', 'Yellow'], 'cap': ['Grey'], 'points': 10,
-                        'time': 2513},
-                       {'proc_steps': 'cc1', 'base': ['Red'], 'ring': ['Blue'], 'cap': ['Grey'], 'points': 5,
-                        'time': 1321},
-                       {'proc_steps': 'cc1', 'base': ['Red'], 'ring': ['Blue'], 'cap': ['Grey'], 'points': 5,
-                        'time': 1321},
-                       {'proc_steps': 'cc3', 'base': ['Grey'], 'ring': ['Blue', 'Orange', 'Green'], 'cap': ['Grey'],
-                        'points': 20, 'time': 3355},
-                       {'proc_steps': 'cc2', 'base': ['Grey'], 'ring': ['Yellow', 'Green'], 'cap': ['Grey'],
-                        'points': 10, 'time': 4277},
-                       {'proc_steps': 'cc0', 'base': ['Black'], 'cap': ['Black'], 'points': 5, 'time': 1013},
-                       {'proc_steps': 'cc1', 'base': ['Red'], 'ring': ['Blue'], 'cap': ['Grey'], 'points': 5,
-                        'time': 1321},
-                       {'proc_steps': 'cc3', 'base': ['Grey'], 'ring': ['Orange', 'Red', 'Green'], 'cap': ['Black'],
-                        'points': 20, 'time': 2816},
-                       {'proc_steps': 'cc3', 'base': ['Red'], 'ring': ['Orange', 'Green', 'Blue'], 'cap': ['Grey'],
-                        'points': 20, 'time': 7301},
-                       {'proc_steps': 'cc3', 'base': ['Grey'], 'ring': ['Orange', 'Red', 'Green'], 'cap': ['Black'],
-                        'points': 20, 'time': 2816},
-                       {'proc_steps': 'cc0', 'base': ['Black'], 'cap': ['Black'], 'points': 5, 'time': 1013},
-                       {'proc_steps': 'cc3', 'base': ['Red'], 'ring': ['Orange', 'Green', 'Blue'], 'cap': ['Grey'],
-                        'points': 20, 'time': 7301},
-                       {'proc_steps': 'cc3', 'base': ['Red'], 'ring': ['Orange', 'Green', 'Blue'], 'cap': ['Grey'],
-                        'points': 20, 'time': 7301},
-                       {'proc_steps': 'cc0', 'base': ['Grey'], 'cap': ['Black'], 'points': 5, 'time': 3822},
-                       {'proc_steps': 'cc3', 'base': ['Red'], 'ring': ['Orange', 'Green', 'Blue'], 'cap': ['Grey'],
-                        'points': 20, 'time': 7301},
-                       {'proc_steps': 'cc3', 'base': ['Red'], 'ring': ['Orange', 'Green', 'Blue'], 'cap': ['Grey'],
-                        'points': 20, 'time': 7301},
-                       {'proc_steps': 'cc0', 'base': ['Grey'], 'cap': ['Black'], 'points': 5, 'time': 3822},
-                       {'proc_steps': 'cc3', 'base': ['Red'], 'ring': ['Orange', 'Green', 'Blue'], 'cap': ['Grey'],
-                        'points': 20, 'time': 7301},
-                       {'proc_steps': 'cc0', 'base': ['Red'], 'cap': ['Grey'], 'points': 5, 'time': 9582},
-                       {'proc_steps': 'cc3', 'base': ['Grey'], 'ring': ['Yellow', 'Blue', 'Red'], 'cap': ['Grey'],
-                        'points': 20, 'time': 2554},
-                       {'proc_steps': 'cc1', 'base': ['Grey'], 'ring': ['Orange'], 'cap': ['Grey'], 'points': 5,
-                        'time': 4014},
-                       {'proc_steps': 'cc1', 'base': ['Black'], 'ring': ['Orange'], 'cap': ['Grey'], 'points': 5,
-                        'time': 9105},
-                       {'proc_steps': 'cc3', 'base': ['Grey'], 'ring': ['Orange', 'Red', 'Green'], 'cap': ['Black'],
-                        'points': 20, 'time': 2816},
-                       {'proc_steps': 'cc3', 'base': ['Red'], 'ring': ['Orange', 'Green', 'Blue'], 'cap': ['Grey'],
-                        'points': 20, 'time': 7301},
-                       {'proc_steps': 'cc3', 'base': ['Grey'], 'ring': ['Orange', 'Red', 'Green'], 'cap': ['Black'],
-                        'points': 20, 'time': 2816},
-                       {'proc_steps': 'cc0', 'base': ['Black'], 'cap': ['Black'], 'points': 5, 'time': 1013},
-                       {'proc_steps': 'cc3', 'base': ['Red'], 'ring': ['Orange', 'Green', 'Blue'], 'cap': ['Grey'],
-                        'points': 20, 'time': 7301},
-                       {'proc_steps': 'cc1', 'base': ['Red'], 'ring': ['Blue'], 'cap': ['Grey'], 'points': 5,
-                        'time': 1321},
-                       {'proc_steps': 'cc0', 'base': ['Black'], 'cap': ['Black'], 'points': 5, 'time': 1013},
-                       {'proc_steps': 'cc2', 'base': ['Red'], 'ring': ['Red', 'Orange'], 'cap': ['Grey'], 'points': 10,
-                        'time': 6549},
-                       {'proc_steps': 'cc3', 'base': ['Grey'], 'ring': ['Yellow', 'Blue', 'Red'], 'cap': ['Grey'],
-                        'points': 20, 'time': 2554},
-                       {'proc_steps': 'cc3', 'base': ['Grey'], 'ring': ['Orange', 'Red', 'Green'], 'cap': ['Black'],
-                        'points': 20, 'time': 2816},
-                       {'proc_steps': 'cc0', 'base': ['Grey'], 'cap': ['Black'], 'points': 5, 'time': 3822},
-                       {'proc_steps': 'cc0', 'base': ['Black'], 'cap': ['Black'], 'points': 5, 'time': 1013},
-                       {'proc_steps': 'cc3', 'base': ['Grey'], 'ring': ['Orange', 'Red', 'Green'], 'cap': ['Black'],
-                        'points': 20, 'time': 2816},
-                       {'proc_steps': 'cc2', 'base': ['Red'], 'ring': ['Green', 'Orange'], 'cap': ['Black'],
-                        'points': 10, 'time': 2424},
-                       {'proc_steps': 'cc1', 'base': ['Red'], 'ring': ['Blue'], 'cap': ['Grey'], 'points': 5,
-                        'time': 1321},
-                       {'proc_steps': 'cc0', 'base': ['Black'], 'cap': ['Grey'], 'points': 5, 'time': 9188},
-                       {'proc_steps': 'cc1', 'base': ['Red'], 'ring': ['Blue'], 'cap': ['Grey'], 'points': 5,
-                        'time': 1321},
-                       {'proc_steps': 'cc3', 'base': ['Grey'], 'ring': ['Orange', 'Red', 'Green'], 'cap': ['Black'],
-                        'points': 20, 'time': 2816},
-                       {'proc_steps': 'cc1', 'base': ['Red'], 'ring': ['Blue'], 'cap': ['Grey'], 'points': 5,
-                        'time': 1321},
-                       {'proc_steps': 'cc0', 'base': ['Black'], 'cap': ['Black'], 'points': 5, 'time': 1013},
-                       {'proc_steps': 'cc1', 'base': ['Grey'], 'ring': ['Green'], 'cap': ['Black'], 'points': 5,
-                        'time': 3251},
-                       {'proc_steps': 'cc1', 'base': ['Red'], 'ring': ['Blue'], 'cap': ['Grey'], 'points': 5,
-                        'time': 1321},
-                       {'proc_steps': 'cc1', 'base': ['Red'], 'ring': ['Blue'], 'cap': ['Grey'], 'points': 5,
-                        'time': 1321},
-                       {'proc_steps': 'cc3', 'base': ['Grey'], 'ring': ['Orange', 'Red', 'Green'], 'cap': ['Black'],
-                        'points': 20, 'time': 2816},
-                       {'proc_steps': 'cc3', 'base': ['Grey'], 'ring': ['Orange', 'Red', 'Green'], 'cap': ['Black'],
-                        'points': 20, 'time': 2816},
-                       {'proc_steps': 'cc3', 'base': ['Grey'], 'ring': ['Orange', 'Red', 'Green'], 'cap': ['Black'],
-                        'points': 20, 'time': 2816}]
-    #sim.create_ordering(AUSWERTUNG_180, just_products=True)
-    sim.create_ordering(settings.AUSWERTUNG_18[1], just_products=True)
+    a = sim.create_ordering(settings.AUSWERTUNG_180[0], just_products=True)
+    settings.AUSWERTUNG_180_SIM_SORTED.append(a)
+    print(a)
+    b = sim.create_ordering(settings.AUSWERTUNG_180[1], just_products=True)
+    settings.AUSWERTUNG_180_SIM_SORTED.append(b)
+    print(b)
+    c = sim.create_ordering(settings.AUSWERTUNG_180[2], just_products=True)
+    settings.AUSWERTUNG_180_SIM_SORTED.append(c)
+    print(c)
+    d = sim.create_ordering(settings.AUSWERTUNG_180[3], just_products=True)
+    settings.AUSWERTUNG_180_SIM_SORTED.append(d)
+    print(d)
+    e= sim.create_ordering(settings.AUSWERTUNG_180[4], just_products=True)
+    settings.AUSWERTUNG_180_SIM_SORTED.append(e)
+    print(e)
+    f = sim.create_ordering(settings.AUSWERTUNG_180[5], just_products=True)
+    settings.AUSWERTUNG_180_SIM_SORTED.append(f)
+    print(f)
+    g =sim.create_ordering(settings.AUSWERTUNG_180[6], just_products=True)
+    settings.AUSWERTUNG_180_SIM_SORTED.append(g)
+    print(g)
+    h = sim.create_ordering(settings.AUSWERTUNG_180[7], just_products=True)
+    settings.AUSWERTUNG_180_SIM_SORTED.append(h)
+    print(h)
+    i = sim.create_ordering(settings.AUSWERTUNG_180[8], just_products=True)
+    settings.AUSWERTUNG_180_SIM_SORTED.append(i)
+    print(i)
+    m = sim.create_ordering(settings.AUSWERTUNG_180[9], just_products=True)
+    settings.AUSWERTUNG_180_SIM_SORTED.append(m)
+    print(m)

@@ -4,7 +4,6 @@ from base_elements import Event
 
 
 class MonitorResource:
-    # TODO: KOMPLETTE SCHEISE WENN MONITORINGN VON MASCHINEN WEIL KAPUTT GEHEN MIT RELEASE AUSLÖST,NEUES MONITORING,
     """monitor simpy resources"""
     def __init__(self, env: simpy.Environment, resource, call, ):
         self.env = env

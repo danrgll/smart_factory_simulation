@@ -7,9 +7,7 @@ from mover import Mover
 import simpy
 from settings import *
 import strategy
-import plot
-import random
-from statistic import Stat, FileNameGenerator,MeanStat, MeanMeanStat
+from statistic import Stat,MeanStat, MeanMeanStat
 
 
 class SmartFactory:
@@ -31,7 +29,7 @@ class SmartFactory:
         self.repairmen_resource = base_elements.RepairmenResource(self.env,self.repair_mans)
         # initialize base
         for i in range(0,n_base):
-            self.base_stations.append(Machine(self.env, i, "base", BASE_LOCATION[i], self.repairmen_resource, PROC_TYPE_INIT_BS.copy(), TIME_TO_CHANGE_PROC_TYPE_BS, 1/1000, PROC_TIME_BASE))
+            self.base_stations.append(Machine(self.env, i, "base", BASE_LOCATION[i], self.repairmen_resource, PROC_TYPE_INIT_BS.copy(), TIME_TO_CHANGE_PROC_TYPE_BS, 1/12000, PROC_TIME_BASE))
         self.base_machine_resource = base_elements.MachineResource(self.env,self.base_stations,"BaseStation")
         # initialize mover
         for i in range(0, n_mover):
@@ -40,9 +38,9 @@ class SmartFactory:
         self.mover_resource = base_elements.MoverResource(self.env,self.movers)
         # initialize machines
         for i in range(0,n_ring):
-            self.ring_stations.append(Machine(self.env, i, "ring", RING_LOCATION[i], self.repairmen_resource, PROC_TYPE_INIT_RS.copy(), TIME_TO_CHANGE_PROC_TYPE_RS, 1/1000, PROC_TIME_RING))
+            self.ring_stations.append(Machine(self.env, i, "ring", RING_LOCATION[i], self.repairmen_resource, PROC_TYPE_INIT_RS.copy(), TIME_TO_CHANGE_PROC_TYPE_RS, 1/12000, PROC_TIME_RING))
         for i in range(0, n_cap):
-            self.cap_stations.append(Machine(self.env, i, "cap", CAP_LOCATION[i], self.repairmen_resource, PROC_TYPE_INIT_CS.copy(), TIME_TO_CHANGE_PROC_TYPE_CS, 1/1000, PROC_TIME_CAP))
+            self.cap_stations.append(Machine(self.env, i, "cap", CAP_LOCATION[i], self.repairmen_resource, PROC_TYPE_INIT_CS.copy(), TIME_TO_CHANGE_PROC_TYPE_CS, 1/12000, PROC_TIME_CAP))
         # group machines to resources
         self.ring_machine_resource = base_elements.MachineResource(self.env, self.ring_stations, "RingStation")
         self.cap_machine_resource = base_elements.MachineResource(self.env, self.cap_stations, "CapStation")
@@ -125,8 +123,8 @@ class ProductionPlanner:
         self.production_sequence = self.strategy.create_ordering(products,self.factory.env, self.point_counter)
         for product in self.production_sequence:
             self.production_sequence_infos.append(product[0].product_infos())
-        print(self.production_sequence_infos)
-        print(self.production_sequence)
+        #print(self.production_sequence_infos)
+        #print(self.production_sequence)
         for (product, prio) in self.production_sequence:
             if product.proc_steps == "cc0":
                 self.produce_steps_c0(product, prio)
@@ -136,12 +134,12 @@ class ProductionPlanner:
                 self.c1_products.append(product)
         a = list(zip(*self.production_sequence))
         self.production_sequence = list(a[0])
-        print(self.production_sequence)
-        print(f"after seq {self.proc_compl}")
+        #print(self.production_sequence)
+        #print(f"after seq {self.proc_compl}")
         self.factory.start_simulation()
 
     def order_done(self, mean_stat):
-        print(f"order_done {self.proc_compl}")
+        #print(f"order_done {self.proc_compl}")
         yield simpy.AllOf(self.factory.env, [x.event for x in self.proc_compl]) or self.factory.env.now
         for machine in self.factory.base_stations:
             machine.end()
@@ -170,11 +168,13 @@ class RewardCounter:
         self.counter = 0
 
 
-def main(order, mean_stat=None, mover=6, base=2, ring=4, cap=4, repair=2, des=2):
+def main(order, mean_stat=None, mover=12, base=4, ring=8, cap=8, repair=4, des=4):
     #(3,1,2,2,1,1)
+    #(6,2,4,4,2,2)
+    #(12,4,8,8,4,4)
     factory = SmartFactory(mover, base, ring, cap, repair, des)
     counter = RewardCounter()
-    production_manager = ProductionPlanner(factory, strategy.ManufactureingRewardStrategy(), counter, mean_stat)
+    production_manager = ProductionPlanner(factory, strategy.ManufactureingAfterTimeLimitStrategy(), counter, mean_stat)
     production_manager.order(order)
 
 
@@ -188,7 +188,7 @@ if __name__ == '__main__':
     # 1020 = 17min game time
     # 9 Produkte bei Robocup
         #(2, 1, "cc0", PRODUCT_CC0_2, 6010)]
-    for order in AUSWERTUNG_18:
+    for order in AUSWERTUNG_180:
         mean_stat = MeanStat(num)
         for i in range(0, num):
             main(order, mean_stat=mean_stat)

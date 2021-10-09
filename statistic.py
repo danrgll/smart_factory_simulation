@@ -30,6 +30,9 @@ class Stat:
             elif abs(float(product.time_limit_of_completion) - float(product.monitor.data[-1])) <=10:
                 x_80 = (product.properties["points"]*80)/100
                 new_data.append(x_80)
+            elif abs(float(product.time_limit_of_completion) - float(product.monitor.data[-1])) <=20:
+                x_10 = (product.properties["points"]*10)/100
+                new_data.append(x_10)
             else:
                 new_data.append(0)
             new_data.append(product.proc_steps)
@@ -55,6 +58,7 @@ class FileNameGenerator:
         print(self.i)
         return name
 
+
 class MeanStat:
     def __init__(self, num=None):
         self.stats = list()
@@ -78,7 +82,6 @@ class MeanStat:
             self.get_points_final_time()
             self.get_mean_point_time()
 
-
     def get_mean_stat(self, plot=False):
         # kriege durchschnitt von den Dataframes irg wie
         df_concat = pd.concat(self.stats)
@@ -89,7 +92,6 @@ class MeanStat:
         if plot is True:
             self.df_mean.plot(x='Zeitpunkt der Auslieferung', y='Produkt ID', kind = 'scatter')
             plt.show()
-
 
     def get_points_final_time(self, plot= False):
         max_over_all = 0
@@ -106,8 +108,8 @@ class MeanStat:
                 min_over_all = max
             elif min_over_all > max:
                 min_over_all = max
-        #ToDO hier Schrittgröße noch festlegen
         i = max_over_all-min_over_all
+        #ToDO Scherittgröße raus werfen
         step_size = len(str(i))
         if plot is True:
             round_up = int(math.ceil(max_over_all/1000))*1000
@@ -158,7 +160,6 @@ class MeanMeanStat():
         self.mean_time = []
         self.time_x = []
         self.points_y = []
-
 
     def get_mean_stat(self, plot=False):
         # kriege durchschnitt von den Dataframes irg wie
@@ -252,6 +253,7 @@ def boxplot_components_changes_points(init, rob, base, ring, cap, repair, des):
     plt.boxplot(data)
     plt.show()
 
+
 def boxplot_components_changes_time(init, rob, base, ring, cap, repair, des):
     plt.xlabel('')
     plt.ylabel('Durchlaufzeit eines Auftrages')
@@ -263,9 +265,10 @@ def boxplot_components_changes_time(init, rob, base, ring, cap, repair, des):
     plt.boxplot(data)
     plt.show()
 
+
 if __name__ == '__main__':
-    #plot_combi_strategy_mean_points(savings.r_mean_points, savings.s_mean_points)
-    #plot_combi_strategy_mean_time(savings.r_mean_time, savings.s_mean_time)
+    #plot_combi_strategy_mean_points(savings.s_mean_points, savings.f_mean_points)
+    #plot_combi_strategy_mean_time(savings.s_mean_time, savings.f_mean_time)
     boxplot_points_strategy(savings.f_all_points, savings.r_all_points, savings.t_all_points, savings.s_all_points)
     boxplot_time_strategy(savings.f_all_time, savings.r_all_time, savings.t_all_time, savings.s_all_time)
     #boxplot_components_changes_points(savings.f_all_points, savings.r_all_points, savings.t_all_points, savings.f_all_points,savings.r_all_points, savings.t_all_points, savings.f_all_points)

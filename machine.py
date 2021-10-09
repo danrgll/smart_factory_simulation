@@ -43,7 +43,6 @@ class Machine(object):
         """Pass the new process to the machine and change the process type if necessary"""
         try:
             product.monitor.monitor("BEREIT", self.env.now, self.machine_type, self.id)
-            # ToDO Problem wenn schon location geupdated wurde
             loc_update = self.env.process(self.send_location_to_product(product))
             get_resource.trigger()
             self.current_product = product
@@ -64,14 +63,11 @@ class Machine(object):
             if start_next_proc_yield.event.triggered is not True:
                 #ToDO Rüstzeit läuft weiter obwohl Maschine kaputt, argumentieren über, Mover fahren und holen Zeug könnte man also so lassen
                 yield start_next_proc_yield.event
-            #TODO Event das getriggerd wenn er alle Resourcen bekommen hat, dann schon initialisieren, Probelm das dann Maschine zu früh startet auch scheise weiteres Yield in Restart dann einbauen mögliche Lösung
             self.marker = True
             restart = self.env.process(self.restart_process())
             self.env.process(
                 self.finish(restart, release_resource_event, start_next_proc_trigger, product, process_suceed))
-            if self.broken is True:
-                pass
-            else:
+            if self.broken is False:
                 self.events["reactivate"].trigger()
         except simpy.Interrupt:
             product.monitor.monitor("UNTERBROCHEN BEIM WARTEN", self.env.now, self.machine_type, self.id)
@@ -94,16 +90,16 @@ class Machine(object):
 
     def processing_time(self):
         """return the processing_time"""
-        return abs(random.normalvariate(self.processing_time_setting[0], self.processing_time_setting[1]))
+        return round(abs(random.normalvariate(self.processing_time_setting[0], self.processing_time_setting[1])))
 
     def time_to_failure(self):
         """Return time until next failure for a machine."""
         fail_at = random.expovariate(self.mean_time_to_failure)
-        return fail_at
+        return round(fail_at)
 
     def time_to_change_proc_type(self):
         """Return time which machine needs to change proc type"""
-        return abs(random.normalvariate(self.time_to_change_proc_type_setting[0], self.time_to_change_proc_type_setting[1]))
+        return round(abs(random.normalvariate(self.time_to_change_proc_type_setting[0], self.time_to_change_proc_type_setting[1])))
 
     def working(self):
         """Processes pending processes
@@ -116,46 +112,31 @@ class Machine(object):
                 yield self.env.timeout(self.processing_time())
                 self.events["process_completed"].trigger()
             except simpy.Interrupt:
+                #print("kaputt")
                 self.broken = True
                 if self.current_product is not None:
                     if self.current_product.processes[self.current_process].got_all_resources is False and self.in_progress is True and self.marker is False:
                         self.current_product.monitor.monitor("BREAK DER MASCHINE BEIM WARTEN", self.env.now, self.machine_type, self.id)
-                        #self.input_process.interrupt()
                         req = self.resource.request(priority=-10, preempt=False)
-                        #print(f"Request von Maschine selber{req}")
-                        #print(f"after put in queue{self.resource.queue}")
-                        #print(f"after put in users{self.resource.users}")
-                        #print(req)
                         self.input_process.interrupt()
                         yield req
-                        #print("after yiled in machine broke, req, users, queue")
-                        #print(req)
-                        #print(self.resource.users)
-                        #print(self.resource.queue)
-                        #self.kick_process.trigger()
-
                     elif self.in_progress is False:
                         req = self.resource.request(priority=-10,preempt=False)
-                        print(req)
+                        #ToDo was passiert wenn Anfrage zur selbenZeit an Ressource gestellt wird..
                         yield req
                     else:
                         self.current_product.monitor.monitor("UNTERBROCHEN IM PROZESS", self.env.now,
                                                          self.machine_type, self.id)
                 elif self.in_progress is False:
-                    #print("hallo3")
                     req = self.resource.request(priority=-10, preempt=False)
-                    #print(req)
                     yield req
-                #print(f"machine {self.machine_id} breaks @t={self.env.now}")
                 self.env.process(self.repairmen_resource.request_release_resource(self.location, self.events["wait_until_repaired"]))
                 yield self.events["wait_until_repaired"].event
-                #print(f"machine {self.machine_id} ready again @t={self.env.now}")
                 self.broken = False
                 if self.in_progress is True:
                     tester.f.__next__()
                     self.events["repaired"].trigger()
                 else:
-                    #print(f"break end {self.in_progress}, {self.id}")
                     self.resource.release(req)
                 self.events["end_break"].trigger()
 
@@ -167,17 +148,15 @@ class Machine(object):
             except simpy.Interrupt:
                 return
 
-
     def finish(self, restart, release_resource_event, start_next_proc_trigger, product, proc_succeed):
         yield self.events["process_completed"].event
-        print(f"im done,{self.machine_type, self.id, self.current_product.product_infos()}")
+        #print(f"im done,{self.machine_type, self.id, self.current_product.product_infos()}")
         restart.interrupt()
         self.marker = False
         self.in_progress = False  # signal machine is free
         self.current_product = None
         self.current_process = None
         proc_succeed.trigger()
-        #ToDO was für output...
         self.output.append(product)
         product.monitor.monitor("FERTIG",self.env.now,self.machine_type, self.id)
         release_resource_event.trigger()
@@ -204,7 +183,6 @@ class Machine(object):
                 self.current_process
             )
             self.data.append(item)
-            #print(f"machine {machine_id} completed process @t={self.env.now}")
 
     def end(self):
         self.break_process.interrupt()
