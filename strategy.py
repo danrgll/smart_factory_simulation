@@ -84,7 +84,7 @@ class RandomOrderStrategy(OrderingStrategy):
     """
     Random ordering
     """
-    #ToDO: ID ist nach shuffle wieder vertauscht..also ergibt blöde Statistik
+    #ToDO: ID ist nach shuffle wieder vertauscht..also ergibt blöde Statistik, muss noch angepasst werden geht nicht
     def create_ordering(self, env, point_counter, order: list, just_products= False):
         id_generator = 1
         for specification in order:
@@ -252,15 +252,6 @@ class strategy_solution_generator:
 
 if __name__ == '__main__':
     sim = ManufacturingAccordingToSimilarity()
-    a = sim.create_ordering(settings.AUSWERTUNG_180[0], just_products=True)
-    settings.AUSWERTUNG_180_SIM_SORTED.append(a)
-    print(a)
-    b = sim.create_ordering(settings.AUSWERTUNG_180[1], just_products=True)
-    settings.AUSWERTUNG_180_SIM_SORTED.append(b)
-    print(b)
-    c = sim.create_ordering(settings.AUSWERTUNG_180[2], just_products=True)
-    settings.AUSWERTUNG_180_SIM_SORTED.append(c)
-    print(c)
     d = sim.create_ordering(settings.AUSWERTUNG_180[3], just_products=True)
     settings.AUSWERTUNG_180_SIM_SORTED.append(d)
     print(d)

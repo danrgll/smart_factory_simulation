@@ -29,7 +29,7 @@ class SmartFactory:
         self.repairmen_resource = base_elements.RepairmenResource(self.env,self.repair_mans)
         # initialize base
         for i in range(0,n_base):
-            self.base_stations.append(Machine(self.env, i, "base", BASE_LOCATION[i], self.repairmen_resource, PROC_TYPE_INIT_BS.copy(), TIME_TO_CHANGE_PROC_TYPE_BS, 1/12000, PROC_TIME_BASE))
+            self.base_stations.append(Machine(self.env, i, "base", BASE_LOCATION_18[i], self.repairmen_resource, PROC_TYPE_INIT_BS.copy(), TIME_TO_CHANGE_PROC_TYPE_BS, 1/12000, PROC_TIME_BASE))
         self.base_machine_resource = base_elements.MachineResource(self.env,self.base_stations,"BaseStation")
         # initialize mover
         for i in range(0, n_mover):
@@ -38,9 +38,9 @@ class SmartFactory:
         self.mover_resource = base_elements.MoverResource(self.env,self.movers)
         # initialize machines
         for i in range(0,n_ring):
-            self.ring_stations.append(Machine(self.env, i, "ring", RING_LOCATION[i], self.repairmen_resource, PROC_TYPE_INIT_RS.copy(), TIME_TO_CHANGE_PROC_TYPE_RS, 1/12000, PROC_TIME_RING))
+            self.ring_stations.append(Machine(self.env, i, "ring", RING_LOCATION_18[i], self.repairmen_resource, PROC_TYPE_INIT_RS.copy(), TIME_TO_CHANGE_PROC_TYPE_RS, 1/12000, PROC_TIME_RING))
         for i in range(0, n_cap):
-            self.cap_stations.append(Machine(self.env, i, "cap", CAP_LOCATION[i], self.repairmen_resource, PROC_TYPE_INIT_CS.copy(), TIME_TO_CHANGE_PROC_TYPE_CS, 1/12000, PROC_TIME_CAP))
+            self.cap_stations.append(Machine(self.env, i, "cap", CAP_LOCATION_18[i], self.repairmen_resource, PROC_TYPE_INIT_CS.copy(), TIME_TO_CHANGE_PROC_TYPE_CS, 1/12000, PROC_TIME_CAP))
         # group machines to resources
         self.ring_machine_resource = base_elements.MachineResource(self.env, self.ring_stations, "RingStation")
         self.cap_machine_resource = base_elements.MachineResource(self.env, self.cap_stations, "CapStation")
@@ -168,7 +168,7 @@ class RewardCounter:
         self.counter = 0
 
 
-def main(order, mean_stat=None, mover=12, base=4, ring=8, cap=8, repair=4, des=4):
+def main(order, mean_stat=None, mover=7, base=2, ring=5, cap=4, repair=2, des=4):
     #(3,1,2,2,1,1)
     #(6,2,4,4,2,2)
     #(12,4,8,8,4,4)
@@ -188,7 +188,7 @@ if __name__ == '__main__':
     # 1020 = 17min game time
     # 9 Produkte bei Robocup
         #(2, 1, "cc0", PRODUCT_CC0_2, 6010)]
-    for order in AUSWERTUNG_180:
+    for order in AUSWERTUNG_18:
         mean_stat = MeanStat(num)
         for i in range(0, num):
             main(order, mean_stat=mean_stat)

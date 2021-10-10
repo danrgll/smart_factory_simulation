@@ -121,14 +121,16 @@ class Machine(object):
                         self.input_process.interrupt()
                         yield req
                     elif self.in_progress is False:
-                        req = self.resource.request(priority=-10,preempt=False)
-                        #ToDo was passiert wenn Anfrage zur selbenZeit an Ressource gestellt wird..
+                        req = self.resource.request(priority=-10,preempt=True)
+                        #ToDo was passiert wenn Anfrage zur selbenZeit an Ressource gestellt wird..das mit True nocmal testn und überdnekne
+                        # ToDo Kann da nicht Blödsinn passieren, gleichzeitige Zuteilung eines Produktes sodass Voll und der Kicked danach den falschen
+                        # Gefährlich
                         yield req
                     else:
                         self.current_product.monitor.monitor("UNTERBROCHEN IM PROZESS", self.env.now,
                                                          self.machine_type, self.id)
                 elif self.in_progress is False:
-                    req = self.resource.request(priority=-10, preempt=False)
+                    req = self.resource.request(priority=-10, preempt=True)
                     yield req
                 self.env.process(self.repairmen_resource.request_release_resource(self.location, self.events["wait_until_repaired"]))
                 yield self.events["wait_until_repaired"].event

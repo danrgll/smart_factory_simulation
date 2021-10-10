@@ -237,7 +237,7 @@ def boxplot_time_strategy(f, r, t, s):
     ax.spines['right'].set_color('none')
     ax.spines['top'].set_color('none')
     data = [f, r, t, s]
-    plt.axis([0, 5, 0, 3000])
+    plt.axis([0, 5, 0, 10000])
     plt.boxplot(data)
     plt.show()
 
@@ -267,15 +267,15 @@ def boxplot_components_changes_time(init, rob, base, ring, cap, repair, des):
 
 
 if __name__ == '__main__':
-    #plot_combi_strategy_mean_points(savings.s_mean_points, savings.f_mean_points)
-    #plot_combi_strategy_mean_time(savings.s_mean_time, savings.f_mean_time)
-    boxplot_points_strategy(savings.f_all_points, savings.r_all_points, savings.t_all_points, savings.s_all_points)
-    boxplot_time_strategy(savings.f_all_time, savings.r_all_time, savings.t_all_time, savings.s_all_time)
-    #boxplot_components_changes_points(savings.f_all_points, savings.r_all_points, savings.t_all_points, savings.f_all_points,savings.r_all_points, savings.t_all_points, savings.f_all_points)
+    plot_combi_strategy_mean_points(savings.robo_8_ring_6_des_6_mean_point, savings.r_mean_points)
+    plot_combi_strategy_mean_time(savings.robo_8_ring_6_des_6_mean_time, savings.r_mean_time)
+    #boxplot_points_strategy(savings.f1_all_points, savings.r1_all_points, savings.t1_all_points, savings.s1_all_points)
+    #boxplot_time_strategy(savings.f1_all_time, savings.r1_all_time, savings.t1_all_time, savings.s1_all_time)
+    #boxplot_components_changes_points(savings.re_all_points,savings.robo_all_points, savings.base_all_points, savings.ring_all_points, savings.cap_all_points,savings.re_all_points, savings.des_all_points)
+    #boxplot_components_changes_time(savings.r_all_time, savings.robo_all_time, savings.base_all_time, savings.ring_all_time,savings.cap_all_time, savings.re_all_time, savings.des_all_time)
 
 
-
-
+#ToDo auf 2000 Zeitschritten Plot reduzieren
 
 
 
