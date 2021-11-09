@@ -8,7 +8,7 @@ import savings
 class Stat:
     def __init__(self):
         self.raw_data = []
-        self.modified_data = {'Produkt ID': list(),'Produktionszeitlimit': list(), 'Zeitpunkt der Auslieferung': list(),
+        self.modified_data = {'Produkt ID': list(), 'Produktionszeitlimit': list(), 'Zeitpunkt der Auslieferung': list(),
                               'Limit eingehalten': list(), 'mögliche Punkte': list(), 'Punkte erhalten': list(),
                               'Produkttyp': list()}
         self.file_name_generator = FileNameGenerator()
@@ -16,10 +16,10 @@ class Stat:
 
     def get_all_data(self, product_sequence):
         for product in product_sequence:
-            new_data = []
+            new_data = list()
             new_data.append(product.id)
-            new_data.append(product.time_limit_of_completion) #timelimit
-            new_data.append(product.monitor.data[-1]) # processed time
+            new_data.append(product.time_limit_of_completion)  # timelimit
+            new_data.append(product.monitor.data[-1])  # processed time
             if (float(product.time_limit_of_completion) - float(product.monitor.data[-1])) >= 0:
                 new_data.append('Ja')
             else:
@@ -27,10 +27,10 @@ class Stat:
             new_data.append(product.properties["points"])
             if new_data[3] == 'Ja':
                 new_data.append(product.properties["points"])
-            elif abs(float(product.time_limit_of_completion) - float(product.monitor.data[-1])) <=10:
+            elif abs(float(product.time_limit_of_completion) - float(product.monitor.data[-1])) <= 10:
                 x_80 = (product.properties["points"]*80)/100
                 new_data.append(x_80)
-            elif abs(float(product.time_limit_of_completion) - float(product.monitor.data[-1])) <=20:
+            elif abs(float(product.time_limit_of_completion) - float(product.monitor.data[-1])) <= 20:
                 x_10 = (product.properties["points"]*10)/100
                 new_data.append(x_10)
             else:
@@ -49,10 +49,12 @@ class Stat:
             self.modified_data['Produkttyp'].append(product_data[6])
         self.dataframe = pd.DataFrame(self.modified_data, index=self.modified_data['Produkt ID'])
 
+
 class FileNameGenerator:
     def __init__(self):
         self.i = 0
-    def generateName(self):
+
+    def generate_name(self):
         name = f"sim{str(self.i)}.pkl"
         self.i += 1
         print(self.i)
@@ -62,7 +64,7 @@ class FileNameGenerator:
 class MeanStat:
     def __init__(self, num=None):
         self.stats = list()
-        self.modified_data = {'Produkt ID': list(),'Produktionszeitlimit': list(), 'Zeitpunkt der Auslieferung': list(),
+        self.modified_data = {'Produkt ID': list(), 'Produktionszeitlimit': list(), 'Zeitpunkt der Auslieferung': list(),
                               'Limit eingehalten': list(), 'mögliche Punkte': list(), 'Punkte erhalten': list(),
                               'Produkttyp': list()}
         self.mean_value = []
@@ -75,7 +77,7 @@ class MeanStat:
         self.points_y = []
 
     def check_if_all_data(self):
-        self.stat_counter +=1
+        self.stat_counter += 1
         print(f"wb{self.stat_counter}")
         if self.stat_counter == self.num:
             self.get_mean_stat()
@@ -90,10 +92,10 @@ class MeanStat:
         self.df_mean = pd.DataFrame(group_by_row_index.mean())
         print(self.df_mean)
         if plot is True:
-            self.df_mean.plot(x='Zeitpunkt der Auslieferung', y='Produkt ID', kind = 'scatter')
+            self.df_mean.plot(x='Zeitpunkt der Auslieferung', y='Produkt ID', kind='scatter')
             plt.show()
 
-    def get_points_final_time(self, plot= False):
+    def get_points_final_time(self, plot=False):
         max_over_all = 0
         min_over_all = None
         po_points = self.stats[0]['mögliche Punkte'].sum()
@@ -109,19 +111,18 @@ class MeanStat:
             elif min_over_all > max:
                 min_over_all = max
         i = max_over_all-min_over_all
-        #ToDO Scherittgröße raus werfen
+        # ToDO Scherittgröße raus werfen
         step_size = len(str(i))
         if plot is True:
             round_up = int(math.ceil(max_over_all/1000))*1000
             plt.xticks(np.arange(0, max_over_all, step=1000))
-            plt.ylim(0,self.stats[0]['mögliche Punkte'].sum())
+            plt.ylim(0, self.stats[0]['mögliche Punkte'].sum())
             print(self.stats[0]['mögliche Punkte'].sum())
             plt.title('TEst')
             plt.xlabel('Fertig mit Produktion')
             plt.ylabel('Punkte')
-            plt.scatter(self.time_x,self.points_y)
+            plt.scatter(self.time_x, self.points_y)
             plt.show()
-        #plt.xticks(ticks=[])
 
     def get_mean_point_time(self, plot=False):
         counter_points = 0
@@ -146,10 +147,11 @@ class MeanStat:
             plt.scatter(self.mean_time, self.mean_points)
             plt.show()
 
-class MeanMeanStat():
+
+class MeanMeanStat:
     def __init__(self, num=None):
         self.stats = list()
-        self.modified_data = {'Produkt ID': list(),'Produktionszeitlimit': list(), 'Zeitpunkt der Fertigstellung': list(),
+        self.modified_data = {'Produkt ID': list(), 'Produktionszeitlimit': list(), 'Zeitpunkt der Fertigstellung': list(),
                               'Limit eingehalten': list(), 'mögliche Punkte': list(), 'Punkte erhalten': list(),
                               'Produkttyp': list()}
         self.mean_value = []
@@ -169,20 +171,21 @@ class MeanMeanStat():
         self.df_mean = pd.DataFrame(group_by_row_index.mean())
         print(self.df_mean)
         if plot is True:
-            self.df_mean.plot(x='Zeitpunkt der Auslieferung', y='Produkt ID',kind = 'scatter',title = 'Zeitpunkt der Auslieferung je Produkt')
+            self.df_mean.plot(x='Zeitpunkt der Auslieferung', y='Produkt ID', kind='scatter', title='Zeitpunkt der Auslieferung je Produkt')
             plt.show()
 
     def plot_mean_points_over_set(self):
         plt.title('Durchschnittliche Durchlaufzeit und erreichte Punktzahl pro Auftrag')
         plt.xlabel('Durchschnittliche Durchlaufzeit')
         plt.ylabel('erreichte Punkte in %')
-        #plt.axis([xmin, xmax, ymin, ymax])
+        # plt.axis([xmin, xmax, ymin, ymax])
         plt.axis([0, 3000, 0, 100])
         print("Mean Time")
         print(self.mean_time)
         print("mean_points")
         print(self.mean_points)
-        plt.scatter(self.mean_time, self.mean_points, color=['red','green','blue','grey','black','orange','cyan','brown','purple', 'lime'])
+        plt.scatter(self.mean_time, self.mean_points, color=['red', 'green', 'blue', 'grey', 'black', 'orange',
+                                                             'cyan', 'brown', 'purple', 'lime'])
         plt.show()
 
     def plot_all_time_points(self):
@@ -197,92 +200,86 @@ class MeanMeanStat():
         print(self.points_y)
         plt.show()
 
-def plot_combi_strategy_mean_points(x,y):
+
+def plot_combi_strategy_mean_points(x, y):
     plt.title('')
-    plt.xlabel('erreichte Punkte in %')
-    plt.ylabel('erreichte Punkte in %, Fifo')
+    plt.xlabel('durchschnittlich erreichte Punkte in %, Time')
+    plt.ylabel('durchschnittlich erreichte Punkte in %, Fifo')
     plt.axis([0, 100, 0, 100])
-    plt.scatter(x,y, color=['red','green','blue','grey','black','orange','cyan','brown','purple', 'lime'])
-    plt.plot([0,100], [0,100], '-', c='black', linewidth= .8)
+    plt.scatter(x, y, color=['red', 'green', 'blue', 'grey', 'black', 'orange', 'cyan', 'brown', 'purple', 'lime'])
+    plt.plot([0, 100], [0, 100], '-', c='black', linewidth=.8)
     plt.show()
 
 
-def plot_combi_strategy_mean_time(x,y):
+def plot_combi_strategy_mean_time(x, y):
     plt.title('')
-    plt.xlabel('Durchschnittliche Durchlaufzeit ')
-    plt.ylabel('Durchschnittliche Durchlaufzeit, Fifo')
-    plt.axis([0, 3000, 0, 3000])
-    plt.scatter(x,y, color=['red','green','blue','grey','black','orange','cyan','brown','purple', 'lime'])
-    plt.plot([0,3000], [0,3000], '-', c='black', linewidth= .8)
+    plt.xlabel('durchschnittliche Durchlaufzeit, Time')
+    plt.ylabel('durchschnittliche Durchlaufzeit, Fifo')
+    plt.axis([0, 2000, 0, 2000])
+    plt.scatter(x, y, color=['red', 'green', 'blue', 'grey', 'black', 'orange', 'cyan', 'brown', 'purple', 'lime'])
+    plt.plot([0, 1], [0, 10000], '-', c='black', linewidth=.8)
     plt.show()
 
 
 def boxplot_points_strategy(f, r, t, s):
     plt.title('')
     plt.xlabel('Strategien')
-    plt.ylabel('erreichte Punkte in %')
+    plt.ylabel('erreichte Punkte in % aller Simulationen der Aufträge')
     ax = plt.gca()
     ax.spines['right'].set_color('none')
     ax.spines['top'].set_color('none')
     data = [f, r, t, s]
-    plt.axis([0, 5, 0, 100])
     plt.boxplot(data)
+    plt.xticks([1, 2, 3, 4], ['Fifo', 'Reward', 'Time', 'Similarity'])
     plt.show()
 
 
 def boxplot_time_strategy(f, r, t, s):
-    plt.xlabel('')
-    plt.ylabel('Durchlaufzeit eines Auftrages')
+    plt.xlabel('Strategien')
+    plt.ylabel('Durchlaufzeiten aller Simulationen der Aufträge')
     ax = plt.gca()
     ax.spines['right'].set_color('none')
     ax.spines['top'].set_color('none')
     data = [f, r, t, s]
-    plt.axis([0, 5, 0, 10000])
+    plt.xticks([1, 2, 3, 4], ['Fifo', 'Reward', 'Time', 'Similarity'])
     plt.boxplot(data)
+    plt.xticks([1, 2, 3, 4], ['Fifo', 'Reward', 'Time', 'Similarity'])
     plt.show()
 
 
 def boxplot_components_changes_points(init, rob, base, ring, cap, repair, des):
-    plt.xlabel('')
-    plt.ylabel('erreichte Punkte in %')
+    plt.xlabel('Erhöhung der jeweiligen Komponenten um Faktor 2')
+    plt.ylabel('erreichte Punkte in % aller Simulationen der Aufträge')
     ax = plt.gca()
     ax.spines['right'].set_color('none')
     ax.spines['top'].set_color('none')
-    data = [init,rob, base, ring, cap, repair, des]
+    data = [init, rob, ring, des, base, cap, repair]
     plt.axis([0, 8, 0, 100])
     plt.boxplot(data)
+    plt.xticks([1, 2, 3, 4, 5, 6, 7], ['Init', 'Robo', 'Ring', 'Del', 'Base', 'Cap', 'Ins'])
     plt.show()
 
 
 def boxplot_components_changes_time(init, rob, base, ring, cap, repair, des):
-    plt.xlabel('')
-    plt.ylabel('Durchlaufzeit eines Auftrages')
+    plt.xlabel('Erhöhung der jeweiligen Komponenten um Faktor 2')
+    plt.ylabel('Durchlaufzeiten aller Simulationen der Aufträge')
     ax = plt.gca()
     ax.spines['right'].set_color('none')
     ax.spines['top'].set_color('none')
-    data = [init,rob, base, ring, cap, repair, des]
-    plt.axis([0, 8, 0, 3000])
+    data = [init, rob, ring, des, base, cap, repair]
     plt.boxplot(data)
+    plt.xticks([1, 2, 3, 4, 5, 6, 7], ['Init', 'Robo', 'Ring', 'Del', 'Base', 'Cap', 'Ins'])
     plt.show()
 
 
 if __name__ == '__main__':
-    plot_combi_strategy_mean_points(savings.robo_8_ring_6_des_6_mean_point, savings.r_mean_points)
-    plot_combi_strategy_mean_time(savings.robo_8_ring_6_des_6_mean_time, savings.r_mean_time)
-    #boxplot_points_strategy(savings.f1_all_points, savings.r1_all_points, savings.t1_all_points, savings.s1_all_points)
-    #boxplot_time_strategy(savings.f1_all_time, savings.r1_all_time, savings.t1_all_time, savings.s1_all_time)
-    #boxplot_components_changes_points(savings.re_all_points,savings.robo_all_points, savings.base_all_points, savings.ring_all_points, savings.cap_all_points,savings.re_all_points, savings.des_all_points)
-    #boxplot_components_changes_time(savings.r_all_time, savings.robo_all_time, savings.base_all_time, savings.ring_all_time,savings.cap_all_time, savings.re_all_time, savings.des_all_time)
-
-
-#ToDo auf 2000 Zeitschritten Plot reduzieren
-
-
-
-
-
-
-
-
-
-
+    # plot_combi_strategy_mean_points(savings.t1_mean_points, savings.f1_mean_points)
+    # plot_combi_strategy_mean_time(savings.t1_mean_time, savings.f1_mean_time)
+    # boxplot_points_strategy(savings.f1_all_points, savings.r1_all_points, savings.t1_all_points, savings.s1_all_points)
+    # boxplot_time_strategy(savings.f1_all_time, savings.r1_all_time, savings.t1_all_time, savings.s1_all_time)
+    boxplot_components_changes_points(savings.re_all_points, savings.robo_all_points, savings.base_all_points,
+                                      savings.ring_all_points, savings.cap_all_points, savings.re_all_points,
+                                      savings.des_all_points)
+    boxplot_components_changes_time(savings.r_all_time, savings.robo_all_time,
+                                    savings.base_all_time, savings.ring_all_time, savings.cap_all_time,
+                                    savings.re_all_time, savings.des_all_time)

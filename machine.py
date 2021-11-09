@@ -1,12 +1,12 @@
 import random
-import tester
 import simpy
 from base_elements import Event
 
 
 class Machine(object):
     """Machines that process something"""
-    def __init__(self, env: simpy.Environment, machine_id, machine_type, location, repairmen_resource, current_proc_type, time_to_change_proc_type: tuple,
+    def __init__(self, env: simpy.Environment, machine_id, machine_type, location, repairmen_resource,
+                 current_proc_type, time_to_change_proc_type: tuple,
                  mean_time_to_failure: float, man_proc_time: list):
         self.env = env
         self.id = machine_id
@@ -21,7 +21,7 @@ class Machine(object):
         self.mean_time_to_failure = mean_time_to_failure
         self.repairmen_resource = repairmen_resource
         self.man_proc_time = man_proc_time  # Manufacturing process types time
-        self.current_proc_type = current_proc_type # current process type
+        self.current_proc_type = current_proc_type  # current process type
         self.time_to_change_proc_type_setting = time_to_change_proc_type  # (mean, sigma)
         self.processing_time_setting = None  # (pt_mean, pt_sigma)
         self.events = {
@@ -39,7 +39,8 @@ class Machine(object):
         self.marker = False
         self.kick_process = Event(self.env)
 
-    def input(self, proc_id, get_resource, release_resource_event, start_next_proc_yield: Event, start_next_proc_trigger: Event, product, process_suceed, new_try):
+    def input(self, proc_id, get_resource, release_resource_event, start_next_proc_yield: Event,
+              start_next_proc_trigger: Event, product, process_suceed, new_try):
         """Pass the new process to the machine and change the process type if necessary"""
         try:
             product.monitor.monitor("BEREIT", self.env.now, self.machine_type, self.id)
@@ -61,7 +62,8 @@ class Machine(object):
                     self.current_proc_type.append(color)
             self.processing_time_setting = self.man_proc_time[len(product.properties[self.machine_type])-1]
             if start_next_proc_yield.event.triggered is not True:
-                #ToDO Rüstzeit läuft weiter obwohl Maschine kaputt, argumentieren über, Mover fahren und holen Zeug könnte man also so lassen
+                # ToDO Rüstzeit läuft weiter obwohl Maschine kaputt, argumentieren über, Mover fahren und holen
+                #  Zeug könnte man also so lassen
                 yield start_next_proc_yield.event
             self.marker = True
             restart = self.env.process(self.restart_process())
@@ -78,7 +80,6 @@ class Machine(object):
                 release_resource_event.trigger()
             self.marker = False
             new_try.trigger()
-
 
     def send_location_to_product(self, product):
         try:
@@ -99,7 +100,8 @@ class Machine(object):
 
     def time_to_change_proc_type(self):
         """Return time which machine needs to change proc type"""
-        return round(abs(random.normalvariate(self.time_to_change_proc_type_setting[0], self.time_to_change_proc_type_setting[1])))
+        return round(abs(random.normalvariate(self.time_to_change_proc_type_setting[0],
+                                              self.time_to_change_proc_type_setting[1])))
 
     def working(self):
         """Processes pending processes
@@ -112,31 +114,34 @@ class Machine(object):
                 yield self.env.timeout(self.processing_time())
                 self.events["process_completed"].trigger()
             except simpy.Interrupt:
-                #print("kaputt")
                 self.broken = True
                 if self.current_product is not None:
-                    if self.current_product.processes[self.current_process].got_all_resources is False and self.in_progress is True and self.marker is False:
-                        self.current_product.monitor.monitor("BREAK DER MASCHINE BEIM WARTEN", self.env.now, self.machine_type, self.id)
+                    if self.current_product.processes[self.current_process].got_all_resources is False and \
+                            self.in_progress is True and self.marker is False:
+                        self.current_product.monitor.monitor("BREAK DER MASCHINE BEIM WARTEN", self.env.now,
+                                                             self.machine_type, self.id)
                         req = self.resource.request(priority=-10, preempt=False)
                         self.input_process.interrupt()
                         yield req
                     elif self.in_progress is False:
-                        req = self.resource.request(priority=-10,preempt=True)
-                        #ToDo was passiert wenn Anfrage zur selbenZeit an Ressource gestellt wird..das mit True nocmal testn und überdnekne
-                        # ToDo Kann da nicht Blödsinn passieren, gleichzeitige Zuteilung eines Produktes sodass Voll und der Kicked danach den falschen
+                        req = self.resource.request(priority=-10, preempt=True)
+                        # ToDo was passiert wenn Anfrage zur selbenZeit an Ressource gestellt wird..
+                        #  das mit True nocmal testn und überdnekne
+                        # ToDo Kann da nicht Blödsinn passieren, gleichzeitige Zuteilung eines Produktes
+                        #  sodass Voll und der Kicked danach den falschen
                         # Gefährlich
                         yield req
                     else:
                         self.current_product.monitor.monitor("UNTERBROCHEN IM PROZESS", self.env.now,
-                                                         self.machine_type, self.id)
+                                                             self.machine_type, self.id)
                 elif self.in_progress is False:
                     req = self.resource.request(priority=-10, preempt=True)
                     yield req
-                self.env.process(self.repairmen_resource.request_release_resource(self.location, self.events["wait_until_repaired"]))
+                self.env.process(self.repairmen_resource.request_release_resource(self.location,
+                                                                                  self.events["wait_until_repaired"]))
                 yield self.events["wait_until_repaired"].event
                 self.broken = False
                 if self.in_progress is True:
-                    tester.f.__next__()
                     self.events["repaired"].trigger()
                 else:
                     self.resource.release(req)
@@ -152,7 +157,6 @@ class Machine(object):
 
     def finish(self, restart, release_resource_event, start_next_proc_trigger, product, proc_succeed):
         yield self.events["process_completed"].event
-        #print(f"im done,{self.machine_type, self.id, self.current_product.product_infos()}")
         restart.interrupt()
         self.marker = False
         self.in_progress = False  # signal machine is free
@@ -160,10 +164,9 @@ class Machine(object):
         self.current_process = None
         proc_succeed.trigger()
         self.output.append(product)
-        product.monitor.monitor("FERTIG",self.env.now,self.machine_type, self.id)
+        product.monitor.monitor("FERTIG", self.env.now, self.machine_type, self.id)
         release_resource_event.trigger()
         start_next_proc_trigger.trigger()
-
 
     def break_machine(self):
         """Break the machine every now and then."""

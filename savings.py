@@ -179,8 +179,3 @@ des1_mean_points = []
 des1_all_time = []
 des1_all_points = []
 
-
-check_time_mean_time =
-check_time_mean_points =
-check_time_all_time =
-check_time_all_points

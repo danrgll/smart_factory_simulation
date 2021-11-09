@@ -15,6 +15,7 @@ class MonitorResource:
             self.patch_resource(self.resource, post=self.monitor_resource)
 
     def patch_resource(self, resource, pre=None, post=None):
+        """Each time a resource is released again, information about monitor_resource is stored."""
         def get_wrapper(func):
             @wraps(func)
             def wrapper(*args, **kwargs):
@@ -55,47 +56,36 @@ class MonitorResource:
 
 
 class MonitorProduct:
-    def __init__(self, env: simpy.Environment, id, proc_steps):
+    """Monitors the production process of a product and save the information in a file"""
+    def __init__(self, env: simpy.Environment, id):
         self.env = env
         self.product_id = id
         self.current_machine = None
         self.monitor_event = Event(self.env)
         self.data = []
-        #self.file = open("product" + str(self.product_id) + ".txt", "w")
-        #self.file.write(f"Manufacturing log of product {str(self.product_id)}: \n")
-        #self.file.close()
+        # self.file = open("product" + str(self.product_id) + ".txt", "w")
+        # self.file.write(f"Manufacturing log of product {str(self.product_id)}: \n")
+        # self.file.close()
 
-    def monitor(self,mode, time, location, id= None):
-        #self.log_all = open("log_all.txt", "a")
-        #self.file = open("product" + str(self.product_id) + ".txt", "a")
+    def monitor(self, mode, time, location, id=None):
+        """Writes observed information to the file"""
+        # self.log_all = open("log_all.txt", "a")
+        # self.file = open("product" + str(self.product_id) + ".txt", "a")
         if id is not None:
             pass
-            #self.file.write(f"{location} {id} at time {time}, mode: {mode}\n")
-            #self.log_all.write(f"{location} {id} at time {time}, mode: {mode}\n")
+            # self.file.write(f"{location} {id} at time {time}, mode: {mode}\n")
+            # self.log_all.write(f"{location} {id} at time {time}, mode: {mode}\n")
         else:
             pass
-            #self.file.write(f"{location} at time {time}, mode: {mode}\n")
-            #self.log_all.write(f"{location} at time {time}, mode: {mode}\n")
+            # self.file.write(f"{location} at time {time}, mode: {mode}\n")
+            # self.log_all.write(f"{location} at time {time}, mode: {mode}\n")
         self.data.append(time)
-        #self.file.close()
+        # self.file.close()
 
-    def log_book(self, file: str):
-        log_data = self.data
-        process_steps_copy = self.process_steps
-        log_data.reverse()
-        process_steps_copy.reverse()
-        self.file.write(f"Manufacturing log of product {str(self.product_id)}: \n")
-        while True:
-            try:
-                item = log_data.pop()
-                proc = process_steps_copy.pop()
-                self.file.write(f"{proc} at time {item} \n")
-            except IndexError:
-                break
-        self.file.close()
 
-class Monitor_Destination:
+class MonitorDestination:
     def __init__(self):
         self.data = []
+
     def monitor_process(self, product, time):
         self.data.append([product.order_number, time])

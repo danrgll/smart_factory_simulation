@@ -9,10 +9,10 @@ class Repairman(object):
         self.env = env
         self.busy = False
         self.location = location
-        self.repair_time_m_s = repair_time
+        self.repair_time_m_s = repair_time  # processing time
 
     def work(self, new_job_location, release_resource: Event):
-        # time to arrive broken machine
+        """Simulates the processing of a repair order. The way to the object and its repair."""
         time_to_job_location = round(np.linalg.norm(self.location - new_job_location))
         yield self.env.timeout(time_to_job_location)
         self.location = new_job_location
@@ -23,5 +23,3 @@ class Repairman(object):
     def repair_time(self):
         """return the processing_time"""
         return round(abs(random.normalvariate(self.repair_time_m_s[0], self.repair_time_m_s[1])))
-
-

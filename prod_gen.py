@@ -1,7 +1,10 @@
 import itertools
 import random
 
-def generate_all_possible_dics(colors_base,colors_ring, colors_cap, start, end):
+
+def generate_all_possible_dics(colors_base, colors_ring, colors_cap, start, end):
+    """Generate all possible product types with the different colours of the individual elements. Choose as many of the
+     4 product types from the universe of all possibilities that all exist in equal numbers and output them."""
     result = list()
     c_1 = list()
     c_2 = list()
@@ -20,18 +23,19 @@ def generate_all_possible_dics(colors_base,colors_ring, colors_cap, start, end):
                 dic = {"proc_steps": "cc3", "base": [c1], "ring": [c for c in c3], "cap": [c2], "points": 75, "time": random.randint(start, end)}
                 c_3.append(dic)
     i = len(result)
-    for element in random.sample(c_1,i):
+    for element in random.sample(c_1, i):
         result.append(element)
-    for element in random.sample(c_2,i):
+    for element in random.sample(c_2, i):
         result.append(element)
     for element in random.sample(c_3, i):
         result.append(element)
-    print(len(result))
     return result
 
 
 def choose_runner_class(possible_dics):
-    result = {}
+    """The different products are divided into three classes. So-called high runners, mid runners and low runners.
+     15% of the products are high runners. 50% mid runners and the rest low runners."""
+    result = dict()
     number_high_runner = int(round(len(possible_dics) * 0.15, 0))
     number_mid_runner = int(round(len(possible_dics) * 0.5, 0))
     result["high_runner"] = random.sample(possible_dics, number_high_runner)
@@ -45,7 +49,10 @@ def choose_runner_class(possible_dics):
 
 
 def generate_products(runner_dic, number_of_products):
-    result = []
+    """With the help of the different product classes, a selected number of products are output. This set of products
+    consists of 70% highrunners, 25% midrunners and 5% lowrunners. These are randomly selected from the classes and
+    can appear several times."""
+    result = list()
     number_of_high_runner_products = int(round(number_of_products * 0.7))
     number_of_mid_runner_products = int(round(number_of_products * 0.25))
     number_of_low_runner_products = number_of_products - number_of_high_runner_products - number_of_mid_runner_products
@@ -58,10 +65,11 @@ def generate_products(runner_dic, number_of_products):
     random.shuffle(result)
     return result
 
-if __name__=="__main__":
-    a = ["Black", "Red", "Grey"]
-    b = ["Black", "Grey"]
-    c = ["Blue", "Red", "Green", "Orange", "Yellow"]
+
+if __name__ == "__main__":
+    a = ["Black", "Red", "Grey"]  # colors base
+    b = ["Black", "Grey"]  # colors cap
+    c = ["Blue", "Red", "Green", "Orange", "Yellow"]  # colors ring
     d = generate_all_possible_dics(a, c, b, 700, 10200)
     r = choose_runner_class(d)
     p = generate_products(r, 180)

@@ -3,6 +3,7 @@ from monitor import MonitorProduct
 import simpy
 from abc import ABC, abstractmethod
 
+
 class Product(ABC):
     def __init__(self, env: simpy.Environment, id: int, counter, properties: dict):
         self.env = env
@@ -14,7 +15,7 @@ class Product(ABC):
         self.current_location = None
         self.next_destination_location = None
         self.processes = dict()
-        self.monitor = MonitorProduct(self.env, self.id, self.proc_steps)  # monitor manufacturing
+        self.monitor = MonitorProduct(self.env, self.id)  # monitor manufacturing
         self.env.process(self.update_location())
         self.env.process(self.check_points(counter))
 
@@ -24,6 +25,8 @@ class Product(ABC):
         pass
 
     def check_points(self, counter):
+        """Method is used to evaluate the achieved number of points after completion of its processes and
+        to pass them to the counter."""
         yield self.events["proc_completed"].event
         if self.env.now <= self.time_limit_of_completion:
             counter.counter += self.properties["points"]
@@ -102,6 +105,3 @@ class ProductCCX(Product):
         self.current_location = self.next_destination_location
         self.next_destination_location = self.stations_location["del"]
         self.events["new_location"].trigger()
-
-
-
