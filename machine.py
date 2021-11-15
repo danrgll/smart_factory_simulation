@@ -4,7 +4,6 @@ from base_elements import Event
 
 
 class Machine(object):
-    """Machines that process something"""
     def __init__(self, env: simpy.Environment, machine_id, machine_type, location, repairmen_resource,
                  current_proc_type, time_to_change_proc_type: tuple,
                  mean_time_to_failure: float, man_proc_time: list):
@@ -41,7 +40,9 @@ class Machine(object):
 
     def input(self, proc_id, get_resource, release_resource_event, start_next_proc_yield: Event,
               start_next_proc_trigger: Event, product, process_suceed, new_try):
-        """Pass the new process to the machine and change the process type if necessary"""
+        """Pass the new process to the machine and change the process type if necessary. Then waits until the product
+        has arrived at the machine and then triggers its production step. While waiting for the product, the process
+        can be interrupted if the product is not assigned to the machine next."""
         try:
             product.monitor.monitor("BEREIT", self.env.now, self.machine_type, self.id)
             loc_update = self.env.process(self.send_location_to_product(product))
@@ -62,8 +63,6 @@ class Machine(object):
                     self.current_proc_type.append(color)
             self.processing_time_setting = self.man_proc_time[len(product.properties[self.machine_type])-1]
             if start_next_proc_yield.event.triggered is not True:
-                # ToDO Rüstzeit läuft weiter obwohl Maschine kaputt, argumentieren über, Mover fahren und holen
-                #  Zeug könnte man also so lassen
                 yield start_next_proc_yield.event
             self.marker = True
             restart = self.env.process(self.restart_process())
@@ -82,6 +81,7 @@ class Machine(object):
             new_try.trigger()
 
     def send_location_to_product(self, product):
+        """updated the location of the product"""
         try:
             yield product.events["update_location"].event
             product.stations_location[self.machine_type] = self.location
@@ -148,6 +148,7 @@ class Machine(object):
                 self.events["end_break"].trigger()
 
     def restart_process(self):
+        """Restarts the manufacturing process if it was interrupted by a fault"""
         while True:
             try:
                 yield self.events["repaired"].event
@@ -156,6 +157,8 @@ class Machine(object):
                 return
 
     def finish(self, restart, release_resource_event, start_next_proc_trigger, product, proc_succeed):
+        """Signals the successful end of the production step. Involved processes are terminated and the
+        resource is released again"""
         yield self.events["process_completed"].event
         restart.interrupt()
         self.marker = False

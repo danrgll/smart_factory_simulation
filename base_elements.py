@@ -24,6 +24,14 @@ class Process(object):
         its associated output events.
 """
     def __init__(self, env, product, pid, inputs=None, outputs=None, resources=None, priority=10):
+        """
+        :param env: Environment
+        :param pid: process id
+        :param inputs: input Events which have to be triggerd before the process can start
+        :param outputs: output Events which will get triggerd if the process is done.
+        :param resources: resources which the process need to processed
+        :param priority: Resource access priority
+        """
         self.env = env
         self.process_id = pid
         self.product = product
@@ -89,7 +97,14 @@ class Process(object):
 
 class Resource(object):
     """A resource that self-manages requests and allocations to them"""
-    def __init__(self, env: simpy.Environment, resource_type, location, capacity: int, processing_time):
+    def __init__(self, env: simpy.Environment, resource_type, location, capacity: int, processing_time: tuple):
+        """
+        :param env: Environment
+        :param resource_type: specifies the resource type as string
+        :param location: np.array location 2D
+        :param capacity: Indicates the capacity of the resource
+        :param processing_time: Specifies the processes of a resource utilization
+        """
         self.env = env
         self.location = location
         self.resource = simpy.PreemptiveResource(self.env, capacity)
@@ -101,7 +116,14 @@ class Resource(object):
 
     def request_release_resource(self, get_resource: Event, release_resource: Event, start_next_proc_step_yield: Event,
                                  start_next_proc_step_trigger: Event, proc_id, product, priority):
-        """request and hold resource. After event is triggered release resource"""
+        """request and hold resource. After event is triggered release resource
+        :param get_resource: Event which signals to the process that it has received the resource
+        :param release_resource: Event which releases the resource again
+        :param start_next_proc_step_yield: Event of the previous resource to wait for. This signals that the previous
+        resource is finished with its share.
+        :param start_next_proc_step_trigger: Signals the next resource to be ready to go.
+        :param product: The product associated with the process
+        """
         completed = False
         event_suceed = Event(self.env, False)
         while completed is False:
@@ -174,7 +196,7 @@ class Resource(object):
 
     def request_slot(self, get_resource: Event, release_resource: Event, start_next_proc_step_yield: Event,
                      start_next_proc_step_trigger: Event, proc_id, product, event_succed):
-        """request a resource slot"""
+        """request a resource slot. Can be interrupted while waiting by another prouzess."""
         try:
             c = self.env.process(self.send_location_to_product(product))
             get_resource.trigger()  # event to signal that you get the resource
@@ -209,6 +231,12 @@ class Resource(object):
 class MachineResource(object):
     """manages a amount of produced machines as a resource"""
     def __init__(self, env: simpy.Environment, machines: list, machine_type: str):
+        """
+
+        :param env: Environment
+        :param machines: Instances of machines stored in a list
+        :param machine_type: Type of machines as string
+        """
         self.env = env
         self.machines = machines
         self.resource = simpy.PreemptiveResource(self.env, capacity=len(self.machines))
@@ -225,7 +253,13 @@ class MachineResource(object):
                                  proc_id, product, priority):
         """request and hold resource. Assigns a machine to the requesting process. If the resource capacity is full
         and a higher priority process requests, the allocation can be interrupted and the request rejoins
-        the manager's queue. After event is triggered release resource. """
+        the manager's queue. After event is triggered release resource.
+        :param get_resource: Event which signals to the process that it has received the resource
+        :param release_resource: Event which releases the resource again
+        :param start_next_proc_step_yield: Event of the previous resource to wait for. This signals that the previous
+        resource is finished with its share.
+        :param start_next_proc_step_trigger: Signals the next resource to be ready to go.
+        :param product: The product associated with the process"""
         completed = False
         machine_process_succeed = Event(self.env, False)
         new_try = Event(self.env)
@@ -321,6 +355,10 @@ class MachineResource(object):
 class MoverResource(object):
     """manages a amount of movers as a resource"""
     def __init__(self, env: simpy.Environment, movers: list):
+        """
+        :param env: Environment
+        :param movers: instances of movers stored in a list
+        """
         self.env = env
         self.movers = movers
         self.resource = simpy.PreemptiveResource(self.env, capacity=len(self.movers))
@@ -333,7 +371,13 @@ class MoverResource(object):
                                  start_next_proc_step_yield: Event, start_next_proc_step_trigger: Event,
                                  proc_id, product, priority):
         """Request, hold and release resource. Assigns movers to the processes. Can be interrupted when processes
-        with a higher priority request."""
+        with a higher priority request.
+        :param get_resource: Event which signals to the process that it has received the resource
+        :param release_resource: Event which releases the resource again
+        :param start_next_proc_step_yield: Event of the previous resource to wait for. This signals that the previous
+        resource is finished with its share.
+        :param start_next_proc_step_trigger: Signals the next resource to be ready to go.
+        :param product: The product associated with the process"""
         work_done = False
         machine_process_succeed = Event(self.env, False)
         new_try = Event(self.env)
@@ -418,13 +462,21 @@ class MoverResource(object):
 class RepairmenResource(object):
     """manages a amount of movers as a resource"""
     def __init__(self, env, repairmen: list):
+        """
+        :param env: Environment
+        :param repairmen: instances of repairman stored in a list
+        """
         self.env = env
         self.repairmen = repairmen
         self.resource = simpy.PriorityResource(self.env, capacity=len(repairmen))
 
     def request_release_resource(self, job_location, wait_until_repaired: Event):
         """Request, hold and release resource. Assigns repairman to the requesting machine. The resource is
-        released again after the malfunction on the machine has been eliminated. """
+        released again after the malfunction on the machine has been eliminated.
+        :param job_location: Place where the order is to be completed
+        :param wait_until_repaired: Event which is triggered when the job is processed or the fault is rectified in
+        order to signal the resource release.
+        """
         request = self.resource.request()
         release_resource = Event(self.env)
         yield request

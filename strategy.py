@@ -12,10 +12,13 @@ class OrderingStrategy(ABC):
 
     @abstractmethod
     def create_ordering(self, order: list, env, point_counter, just_products=False):
+        """Sorts the order description on products according to the respective strategy and creates the products.
+         A sorted production sequence of products is returned."""
         pass
 
 
 class FIFOManufacturingStrategy(OrderingStrategy):
+    """Leaves the products in the order in which they are arranged in the order description."""
     def create_ordering(self, order, env=None, point_counter=None, just_products=False):
         id_generator = 1
         for specification in order:
@@ -32,6 +35,7 @@ class FIFOManufacturingStrategy(OrderingStrategy):
 
 
 class ManufactureingAfterTimeLimitStrategy(OrderingStrategy):
+    """Arranges the products of the order in ascending order of delivery time. """
     def create_ordering(self, order, env=None, point_counter=None, just_products=False):
         order.sort(key=self.taketime)
         id_generator = 1
@@ -54,7 +58,8 @@ class ManufactureingAfterTimeLimitStrategy(OrderingStrategy):
 
 class ManufactureingRewardStrategy(OrderingStrategy):
     """
-    products with high points first, then products with lower points follow
+    Orders the products according to the highest potential reward that can be obtained if the delivery time can be met.
+    A higher reward is preferred over a lower one.
     """
     def create_ordering(self, order, env=None, point_counter=None, just_products=False):
         order.sort(key=self.takepoints, reverse=True)
@@ -79,7 +84,7 @@ class ManufactureingRewardStrategy(OrderingStrategy):
 
 class RandomOrderStrategy(OrderingStrategy):
     """
-    Random ordering
+    The order of the products are arranged randomly
     """
     # ToDO: ID ist nach shuffle wieder vertauscht..also ergibt blöde Statistik, muss noch angepasst werden geht nicht
     def create_ordering(self, env, point_counter, order: list, just_products=False):
@@ -99,6 +104,15 @@ class RandomOrderStrategy(OrderingStrategy):
 
 
 class ManufacturingAccordingToSimilarity(OrderingStrategy):
+    """
+    The strategy pursues the goal of arranging the products in such a way that the neighboring products in the
+    production sequence are as similar as possible in order to shorten the setup of machines. Here, all products
+    are first compared with each other and a scoring is calculated for each product pair. Points are awarded for
+    identical component colors. Then a sequence is searched for that achieves the highest possible sum of the scoring
+    of the product pairs. For small orders of up to 11 products, all permutations are tried out. For larger ones,
+    random arrangements are tried for a fixed time and the one with the best scoring is selected after the time has
+    elapsed.
+    """
     def create_ordering(self, order: list, env=None, point_counter=None, just_products=False):
         sim_list = []
         for element in order:

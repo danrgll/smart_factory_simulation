@@ -15,6 +15,7 @@ class Stat:
         self.dataframe = None
 
     def get_all_data(self, product_sequence):
+        """Stores and evaluates data such as score achieved, whether the delivery time was met, etc. of each product."""
         for product in product_sequence:
             new_data = list()
             new_data.append(product.id)
@@ -39,6 +40,8 @@ class Stat:
             self.raw_data.append(new_data)
 
     def get_record(self):
+        """Divides the data of individual products into categories and stores them in these categories. To then
+        combine them into one dataframe"""
         for product_data in self.raw_data:
             self.modified_data['Produkt ID'].append(product_data[0])
             self.modified_data['Produktionszeitlimit'].append(product_data[1])
@@ -62,6 +65,7 @@ class FileNameGenerator:
 
 
 class MeanStat:
+    """The data collected by the Stats class(single simulation runs) can be merged and analyzed."""
     def __init__(self, num=None):
         self.stats = list()
         self.modified_data = {'Produkt ID': list(), 'Produktionszeitlimit': list(), 'Zeitpunkt der Auslieferung': list(),
@@ -77,6 +81,8 @@ class MeanStat:
         self.points_y = []
 
     def check_if_all_data(self):
+        """Check whether all simulations have already been run. Merges the collected data of the individual
+         simulations and evaluates them"""
         self.stat_counter += 1
         print(f"wb{self.stat_counter}")
         if self.stat_counter == self.num:
@@ -85,7 +91,9 @@ class MeanStat:
             self.get_mean_point_time()
 
     def get_mean_stat(self, plot=False):
-        # kriege durchschnitt von den Dataframes irg wie
+        """merges the individual data frames into one large one and evaluates the average of all of them as far
+          as this is possible via the categories. Optionally, the average times of completion of individual products
+          are output graphically """
         df_concat = pd.concat(self.stats)
         print(len(self.stats))
         group_by_row_index = df_concat.groupby(df_concat.index)
@@ -96,6 +104,8 @@ class MeanStat:
             plt.show()
 
     def get_points_final_time(self, plot=False):
+        """Sums up the achieved points of all products and stores them with the respective end of the production period.
+         Optionally, this can be output graphically for all tests."""
         max_over_all = 0
         min_over_all = None
         po_points = self.stats[0]['mögliche Punkte'].sum()
@@ -110,11 +120,7 @@ class MeanStat:
                 min_over_all = max
             elif min_over_all > max:
                 min_over_all = max
-        i = max_over_all-min_over_all
-        # ToDO Scherittgröße raus werfen
-        step_size = len(str(i))
         if plot is True:
-            round_up = int(math.ceil(max_over_all/1000))*1000
             plt.xticks(np.arange(0, max_over_all, step=1000))
             plt.ylim(0, self.stats[0]['mögliche Punkte'].sum())
             print(self.stats[0]['mögliche Punkte'].sum())
@@ -125,6 +131,8 @@ class MeanStat:
             plt.show()
 
     def get_mean_point_time(self, plot=False):
+        """evaluates the average achieved score in % over all simulations as well as the average time of completion of
+         the order. Optionally, these two parameters can be output graphically in relation to each other."""
         counter_points = 0
         counter_time = 0
         points = []
@@ -149,6 +157,8 @@ class MeanStat:
 
 
 class MeanMeanStat:
+    """The data collected by the MeanStats class(Data over all Simulations) can be merged and analyzed. In this way,
+    the results of orders with the same number of products can be compared."""
     def __init__(self, num=None):
         self.stats = list()
         self.modified_data = {'Produkt ID': list(), 'Produktionszeitlimit': list(), 'Zeitpunkt der Fertigstellung': list(),
@@ -164,7 +174,9 @@ class MeanMeanStat:
         self.points_y = []
 
     def get_mean_stat(self, plot=False):
-        # kriege durchschnitt von den Dataframes irg wie
+        """merges the individual data frames into one large one and evaluates the average of all of them as far
+          as this is possible via the categories. Optionally, the average times of completion of individual products
+          are output graphically"""
         df_concat = pd.concat(self.stats)
         print(len(self.stats))
         group_by_row_index = df_concat.groupby(df_concat.index)
@@ -175,6 +187,7 @@ class MeanMeanStat:
             plt.show()
 
     def plot_mean_points_over_set(self):
+        """plot the average cycle time and average achieved score per order"""
         plt.title('Durchschnittliche Durchlaufzeit und erreichte Punktzahl pro Auftrag')
         plt.xlabel('Durchschnittliche Durchlaufzeit')
         plt.ylabel('erreichte Punkte in %')
@@ -189,6 +202,7 @@ class MeanMeanStat:
         plt.show()
 
     def plot_all_time_points(self):
+        """plot all processing times of the orders and the achieved score per simulation."""
         plt.title('Durchlaufzeit und die erreichte Punktzahl aller Simulationen der Aufträge')
         plt.xlabel('Durchlaufzeit')
         plt.ylabel('erreichte Punkte in %')
@@ -202,6 +216,7 @@ class MeanMeanStat:
 
 
 def plot_combi_strategy_mean_points(x, y):
+    """Graphical comparison of two strategies of the average points achieved."""
     plt.title('')
     plt.xlabel('durchschnittlich erreichte Punkte in %, Time')
     plt.ylabel('durchschnittlich erreichte Punkte in %, Fifo')
@@ -212,6 +227,7 @@ def plot_combi_strategy_mean_points(x, y):
 
 
 def plot_combi_strategy_mean_time(x, y):
+    """Graphical comparison of two strategies of average lead time."""
     plt.title('')
     plt.xlabel('durchschnittliche Durchlaufzeit, Time')
     plt.ylabel('durchschnittliche Durchlaufzeit, Fifo')
@@ -222,6 +238,7 @@ def plot_combi_strategy_mean_time(x, y):
 
 
 def boxplot_points_strategy(f, r, t, s):
+    """Comparison of the 4 strategies over achieved points of all simulations prepared as boxplot."""
     plt.title('')
     plt.xlabel('Strategien')
     plt.ylabel('erreichte Punkte in % aller Simulationen der Aufträge')
@@ -235,6 +252,7 @@ def boxplot_points_strategy(f, r, t, s):
 
 
 def boxplot_time_strategy(f, r, t, s):
+    """Comparison of the 4 strategies over the lead times of all simulations of the orders prepared as boxplot"""
     plt.xlabel('Strategien')
     plt.ylabel('Durchlaufzeiten aller Simulationen der Aufträge')
     ax = plt.gca()
@@ -248,6 +266,8 @@ def boxplot_time_strategy(f, r, t, s):
 
 
 def boxplot_components_changes_points(init, rob, base, ring, cap, repair, des):
+    """Comparison of the achieved points of all simulations of the orders in case of changes of the individual
+    components of the factory with an initial factory."""
     plt.xlabel('Erhöhung der jeweiligen Komponenten um Faktor 2')
     plt.ylabel('erreichte Punkte in % aller Simulationen der Aufträge')
     ax = plt.gca()
@@ -261,6 +281,8 @@ def boxplot_components_changes_points(init, rob, base, ring, cap, repair, des):
 
 
 def boxplot_components_changes_time(init, rob, base, ring, cap, repair, des):
+    """Comparison of the lead times of all simulations of the orders with changes of the individual components
+    of the factory with an initial factory."""
     plt.xlabel('Erhöhung der jeweiligen Komponenten um Faktor 2')
     plt.ylabel('Durchlaufzeiten aller Simulationen der Aufträge')
     ax = plt.gca()
