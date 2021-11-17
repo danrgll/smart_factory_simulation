@@ -13,6 +13,14 @@ from statistic import Stat, MeanStat, MeanMeanStat
 class SmartFactory:
     """create a factory with a set of resources, which are then each grouped and given to their resource manager. """
     def __init__(self, n_mover, n_base, n_ring, n_cap, n_repairman, des):
+        """
+        :param n_mover: number of movers
+        :param n_base: number of base stations
+        :param n_ring: number of ring stations
+        :param n_cap: number of cap stations
+        :param n_repairman: number of repairmen
+        :param des: number of delivery stations
+        """
         # initialize enviroment
         self.env = simpy.Environment()
         # initialize basic resources
@@ -78,6 +86,12 @@ class ProductionPlanner:
     for production are initialized. After the order is completed, the machines are shut down and certain statistics
     of the production can be retrieved."""
     def __init__(self, factory, strategy: strategy.OrderingStrategy, counter, mean_stat=None):
+        """
+        :param factory: Factory in which the production takes place
+        :param strategy: Strategy according to which the production sequence is arranged
+        :param counter: global counter for point evaluation
+        :param mean_stat: Statistics into which the collected data flow and can be graphically evaluated
+        """
         self.factory = factory
         self.strategy = strategy
         self.production_sequence = None
@@ -89,7 +103,10 @@ class ProductionPlanner:
         self.factory.env.process(self.order_done(mean_stat))
 
     def produce_steps_c0(self, product, prio):
-        """initializes the process steps which are necessary for the completion of the product C0."""
+        """initializes the process steps which are necessary for the completion of the product C0.
+        :param product
+        :param Priority of the product. Between 1 and the number of products
+        """
         step_base_cap = Process(self.factory.env, product, self.factory.proc_id_gen.__next__(),
                                  outputs=[product.events["proc_del"]],
                                  resources=[self.factory.base_machine_resource, self.factory.mover_resource,
@@ -105,7 +122,10 @@ class ProductionPlanner:
         self.proc_compl.append(product.events["proc_completed"])
 
     def produce_steps_ccx(self, product, prio):
-        """initializes the process steps which are necessary for the completion of the product C1,C2,C3."""
+        """initializes the process steps which are necessary for the completion of the product C1,C2,C3.
+        :param product
+        :param Priority of the product. Between 1 and the number of products
+        """
         # Mover fährt zu BaseStation und holt BaseElement ab und liefert es zu Ringstation
         step_base_ring = Process(self.factory.env, product, self.factory.proc_id_gen.__next__(),
                             outputs=[product.events["proc_cap"]],
@@ -162,6 +182,7 @@ class ProductionPlanner:
         stat.get_record()
         mean_stat.stats.append(stat.dataframe)
         mean_stat.check_if_all_data()
+        # commented out in order not to evaluate directly after each simulation
         #data = self.factory.destination_monitor.data
         #plot.plot_product_finish(data, time)
         #data1 = self.factory.base_station_monitor.data
@@ -182,7 +203,16 @@ class RewardCounter:
 def main(order, strategy, mean_stat=None, mover=7, base=2, ring=5, cap=4, repair=2, des=4):
     """initialises a factory with a given number of components and a reward counter and production planner to which a
      selected starter is passed. After initialisation, the given order is organised by the production planner
-      and produced by the factory."""
+      and produced by the factory.
+      :param strategy: The strategy according to which the priority of the production sequence is determined
+      :param mean_stat: Statistics in which relevant data are recorded and stored: class Mean_stat
+      :param mover: number of movers in the factory
+      :param base: number of base stations in the factory
+      :param ring: number of ring stations in the factory
+      :param cap: number of cap stations in the factory
+      :param repair: number of repairmen in the factory
+      :param des: number of delivery stations in the factory
+      """
     # (3,1,2,2,1,1)
     # (6,2,4,4,2,2)
     # (12,4,8,8,4,4)

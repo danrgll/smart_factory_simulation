@@ -4,9 +4,26 @@ from base_elements import Event
 
 
 class Machine(object):
-    def __init__(self, env: simpy.Environment, machine_id, machine_type, location, repairmen_resource,
-                 current_proc_type, time_to_change_proc_type: tuple,
+    """A machine that can be initialised as a ring, base or cap station at the same time.
+    The set-up times for the different processes are indicated by the different colours of the elements to be
+    assembled. The machine is started during initialisation and can be switched off after the simulation of the
+    production process has been completed. During this time, faults can occur in the machine, which means that the
+    machine is only available again when these have been rectified."""
+    def __init__(self, env: simpy.Environment, machine_id: int, machine_type: str, location, repairmen_resource,
+                 current_proc_type: list, time_to_change_proc_type: tuple,
                  mean_time_to_failure: float, man_proc_time: list):
+        """
+        :param env: Environemnt
+        :param machine_id: unique id for this resource
+        :param machine_type: machine type as a string
+        :param location: 2D numpy array for location
+        :param repairmen_resource: Resource through which one can request repairmen who in turn can repair
+        a fault on the machine.
+        :param current_proc_type: list of colors which define a process type
+        :param time_to_change_proc_type: Time needed to change individual colour
+        :param mean_time_to_failure: Time at which it is 100% likely that the machine will break down
+        :param man_proc_time: Times of the different types of production.
+        """
         self.env = env
         self.id = machine_id
         self.resource = None  # init in Resource Manager
@@ -42,7 +59,18 @@ class Machine(object):
               start_next_proc_trigger: Event, product, process_suceed, new_try):
         """Pass the new process to the machine and change the process type if necessary. Then waits until the product
         has arrived at the machine and then triggers its production step. While waiting for the product, the process
-        can be interrupted if the product is not assigned to the machine next."""
+        can be interrupted if the product is not assigned to the machine next.
+        :param proc_id: id of the process
+        :param get_resource: Event which signals that the Process got the machine
+        :param release_resource_event: Event which signals that the machine finished the work and the process doesent
+        need the machine no longer
+        :param start_next_proc_yield: wait event until the Product arrived at the machine
+        :param start_next_proc_trigger: signals the next resource of the process to start his work
+        :param product: product of the process
+        :param process_suceed: signals the resource manager that this process part is successfully done
+        :param new_try: Event which will be triggered if the Process got interrupted wail waiting. Important for
+        resource manager
+        """
         try:
             product.monitor.monitor("BEREIT", self.env.now, self.machine_type, self.id)
             loc_update = self.env.process(self.send_location_to_product(product))

@@ -63,12 +63,14 @@ class MonitorProduct:
         self.current_machine = None
         self.monitor_event = Event(self.env)
         self.data = []
+        # commented out for evaluation.
         # self.file = open("product" + str(self.product_id) + ".txt", "w")
         # self.file.write(f"Manufacturing log of product {str(self.product_id)}: \n")
         # self.file.close()
 
     def monitor(self, mode, time, location, id=None):
         """Writes observed information to the file"""
+        # commented out for evaluation.
         # self.log_all = open("log_all.txt", "a")
         # self.file = open("product" + str(self.product_id) + ".txt", "a")
         if id is not None:

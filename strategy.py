@@ -13,7 +13,13 @@ class OrderingStrategy(ABC):
     @abstractmethod
     def create_ordering(self, order: list, env, point_counter, just_products=False):
         """Sorts the order description on products according to the respective strategy and creates the products.
-         A sorted production sequence of products is returned."""
+         A sorted production sequence of products is returned.
+         :param order: list of products which are sorted after a strategy
+         :param env: simpy Environment
+         :param point_counter: global counter of the achieved points after production
+         :param just_products: Some strategies offer to output only the order without initialising the products.
+          This makes it easier to see what the strategy is ordering.
+         """
         pass
 
 

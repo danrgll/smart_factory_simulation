@@ -9,6 +9,13 @@ class Mover(object):
     """Functions as a transport unit which moves products from A to B. Loading times and transport
      times are taken into account."""
     def __init__(self, env: simpy.Environment, id, location: np.array, time_to_pick_up: tuple):
+        """
+
+        :param env: Environment
+        :param id: mover id
+        :param location: location from mover
+        :param time_to_pick_up: (mean and sigma) for pickup time of a product
+        """
         self.env = env
         self.id = id
         self.location = location  # coordinates of his location
@@ -27,11 +34,21 @@ class Mover(object):
         self.current_product = None
         self.proc_alive = None
 
-    def transport_update(self, proc_id, product: Product, get_resource, release_resource: Event,
-                         start_next_proc_yield: Event, start_next_proc_trigger: Event, new_try, proc_succeed):
+    def transport_update(self, proc_id, product: Product, get_resource: Event, release_resource: Event,
+                         start_next_proc_yield: Event, start_next_proc_trigger: Event, new_try: Event,
+                         proc_succeed: Event):
         """Waits until the product is ready for transport and all necessary transport information is available.
         The transport process is then triggered. While waiting, the mover can be removed from the product and the
-         process is interrupted."""
+         process is interrupted.
+
+         :param get_resource: Event which signals to the process that it has received the mover
+         :param release_resource: Event that releases the mover as a resource again
+         :param start_next_proc_yield: Event which signals the start of the mover's activity
+         :param start_next_proc_trigger: Event that sets the next sub-process in motion
+         :param new_try: Event which signals to the manager that the process is being deprived of the resource and
+         must request it again.
+         :param proc_succeed: Event which signals the successful completion of the resource and its work.
+         """
         try:
             self.current_product = product
             self.proc_alive = proc_succeed

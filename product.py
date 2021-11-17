@@ -6,6 +6,12 @@ from abc import ABC, abstractmethod
 
 class Product(ABC):
     def __init__(self, env: simpy.Environment, id: int, counter, properties: dict):
+        """
+        :param env: Environment
+        :param id: Product id
+        :param counter: counter which counts the global points achieved
+        :param properties: properties of the product like base, ring and cap color saved in a dict.
+        """
         self.env = env
         self.id = id
         self.properties = properties

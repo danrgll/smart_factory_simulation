@@ -2,7 +2,7 @@ import itertools
 import random
 
 
-def generate_all_possible_dics(colors_base, colors_ring, colors_cap, start, end):
+def generate_all_possible_dics(colors_base: list, colors_ring: list, colors_cap: list, start: int, end: int):
     """Generate all possible product types with the different colours of the individual elements. Choose as many of the
      4 product types from the universe of all possibilities that all exist in equal numbers and output them."""
     result = list()
