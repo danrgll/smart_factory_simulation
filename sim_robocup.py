@@ -39,7 +39,7 @@ class SmartFactory:
         # initialize base
         for i in range(0, n_base):
             self.base_stations.append(Machine(self.env, i, "base", BASE_LOCATION_18[i], self.repairmen_resource,
-                                              PROC_TYPE_INIT_BS.copy(), TIME_TO_CHANGE_PROC_TYPE_BS, 1/12000,
+                                              PROC_TYPE_INIT_BS.copy(), TIME_TO_CHANGE_PROC_TYPE_BS, 1/500,
                                               PROC_TIME_BASE))
         self.base_machine_resource = base_elements.MachineResource(self.env, self.base_stations, "BaseStation")
         # initialize mover
@@ -51,11 +51,11 @@ class SmartFactory:
         for i in range(0, n_ring):
             self.ring_stations.append(Machine(self.env, i, "ring", RING_LOCATION_18[i], self.repairmen_resource,
                                               PROC_TYPE_INIT_RS.copy(), TIME_TO_CHANGE_PROC_TYPE_RS,
-                                              1/12000, PROC_TIME_RING))
+                                              1/500, PROC_TIME_RING))
         for i in range(0, n_cap):
             self.cap_stations.append(Machine(self.env, i, "cap", CAP_LOCATION_18[i], self.repairmen_resource,
                                              PROC_TYPE_INIT_CS.copy(), TIME_TO_CHANGE_PROC_TYPE_CS,
-                                             1/12000, PROC_TIME_CAP))
+                                             1/500, PROC_TIME_CAP))
         # group machines to resources
         self.ring_machine_resource = base_elements.MachineResource(self.env, self.ring_stations, "RingStation")
         self.cap_machine_resource = base_elements.MachineResource(self.env, self.cap_stations, "CapStation")
