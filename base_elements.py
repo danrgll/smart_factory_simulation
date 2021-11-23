@@ -156,7 +156,7 @@ class Resource(object):
                         # [[currently_using, product, proc_id, pointer]
                         if pointer[1].processes[pointer[2]].got_all_resources is True and pointer[0].event.triggered \
                                 is False:
-                            product.monitor.monitor("PROZESS DER BÖSE", self.env.now, self.resource_type)
+                            product.monitor.monitor("KRITISCHER PROZESS", self.env.now, self.resource_type)
                             yield pointer[0].event
                             t = False
                         elif flag is True:
@@ -294,7 +294,7 @@ class MachineResource(object):
                         # [[currently_using, product, proc_id, pointer]
                         if pointer[1].processes[pointer[2]].got_all_resources is True and pointer[0].event.triggered \
                                 is False:
-                            product.monitor.monitor("PROZESS DER BÖSE", self.env.now, self.machine_type)
+                            product.monitor.monitor("KRITISCHER PROZESS", self.env.now, self.machine_type)
                             yield pointer[0].event
                             t = False
                             currently_using.trigger()
@@ -305,20 +305,26 @@ class MachineResource(object):
                     if t is True:
                         n = True
                         get_machine = False
-                        while get_machine is False:
-                            for machine in self.machines:
-                                if machine.in_progress is False and machine.broken is False:
-                                    machine.in_progress = True
-                                    c = machine
-                                    machine.input_process = self.env.process(machine.input(proc_id, get_resource,
+                        for machine in self.machines:
+                            if machine.in_progress is False and machine.broken is False:
+                                machine.in_progress = True
+                                c = machine
+                                machine.input_process = self.env.process(machine.input(proc_id, get_resource,
                                                                                            release_resource,
                                                                                            start_next_proc_step_yield,
                                                                                            start_next_proc_step_trigger,
                                                                                            product,
                                                                                            machine_process_succeed,
                                                                                            new_try))
-                                    get_machine = True
-                                    break
+                                get_machine = True
+                                break
+                        if get_machine is False:
+                            if [priority, product, proc_id, currently_using, pointer, req] in self.current_processes:
+                                self.current_processes.remove(
+                                    [priority, product, proc_id, currently_using, pointer, req])
+                            n = False
+                            yield self.env.timeout(1)
+                            continue
                         yield release_resource.event
                         if machine_process_succeed.event.triggered is True:
                             completed = True
@@ -342,9 +348,13 @@ class MachineResource(object):
                             get_resource = Event(self.env, False)
                             product.processes[proc_id].get_events.append(get_resource)
                             product.processes[proc_id].process_running.interrupt()
-                            c.input_process.interrupt()
-                            yield new_try.event
-                            currently_using.trigger()
+                            try:
+                                c.input_process.interrupt()
+                                yield new_try.event
+                                currently_using.trigger()
+                            except RuntimeError:
+                                currently_using.trigger()
+                                release_resource = Event(self.env, False)
                         elif product.processes[proc_id].got_all_resources is True:
                             yield machine_process_succeed.event
                             completed = True
@@ -411,7 +421,7 @@ class MoverResource(object):
                         # [[currently_using, product, proc_id, pointer]
                         if pointer[1].processes[pointer[2]].got_all_resources is True and pointer[0].event.triggered \
                                 is False:
-                            product.monitor.monitor("PROZESS DER BÖSE", self.env.now, self.resource_type)
+                            product.monitor.monitor("KRITISCHER PROZESS", self.env.now, self.resource_type)
                             yield pointer[0].event
                             t = False
                             currently_using.trigger()
